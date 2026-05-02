@@ -35,43 +35,79 @@ const FEATURES: FeatureSpec[] = [
     Icon: Inbox,
     iconBg: "bg-brand-100 dark:bg-brand-soft",
     iconFg: "text-brand-600 dark:text-brand-200",
-    th: { title: "Unified Inbox", body: "ดูและตอบแชทจากทุก channel ในหน้าเดียว ไม่ต้องสลับแอปให้วุ่นวาย ทีมทำงานพร้อมกันได้" },
-    en: { title: "Unified Inbox", body: "See and reply to chats from every channel in one screen. No more app-switching, your whole team can work together." },
+    th: {
+      title: "Unified Inbox",
+      body: "ดูและตอบแชทจากทุก channel ในหน้าเดียว ไม่ต้องสลับแอปให้วุ่นวาย ทีมทำงานพร้อมกันได้",
+    },
+    en: {
+      title: "Unified Inbox",
+      body: "See and reply to chats from every channel in one screen. No more app-switching, your whole team can work together.",
+    },
   },
   {
     Icon: Bot,
     iconBg: "bg-emerald-100 dark:bg-emerald-900/40",
     iconFg: "text-emerald-700 dark:text-emerald-300",
-    th: { title: "AI ที่ปรับเองได้", body: "โยนไฟล์ PDF, Word, หรือ Excel ให้ AI อ่าน แล้ว AI จะตอบแทนคุณโดยอ้างอิงข้อมูลจากไฟล์นั้น" },
-    en: { title: "AI you can train", body: "Drop in PDFs, Word docs or spreadsheets — the AI will read them and answer customers based on your files." },
+    th: {
+      title: "AI ที่ปรับเองได้",
+      body: "โยนไฟล์ PDF, Word, หรือ Excel ให้ AI อ่าน แล้ว AI จะตอบแทนคุณโดยอ้างอิงข้อมูลจากไฟล์นั้น",
+    },
+    en: {
+      title: "AI you can train",
+      body: "Drop in PDFs, Word docs or spreadsheets — the AI will read them and answer customers based on your files.",
+    },
   },
   {
     Icon: Zap,
     iconBg: "bg-yellow-100 dark:bg-yellow-900/40",
     iconFg: "text-yellow-700 dark:text-yellow-200",
-    th: { title: "Self-serve 100%", body: "ตั้งค่าเองได้ทุกอย่างไม่ต้องรอทีม support เปลี่ยน prompt ปรับ AI บุคลิก เพิ่ม channel ได้เลย" },
-    en: { title: "100% self-serve", body: "Configure everything yourself — no support tickets to change a prompt, tweak the AI's tone, or add a channel." },
+    th: {
+      title: "Self-serve 100%",
+      body: "ตั้งค่าเองได้ทุกอย่างไม่ต้องรอทีม support เปลี่ยน prompt ปรับ AI บุคลิก เพิ่ม channel ได้เลย",
+    },
+    en: {
+      title: "100% self-serve",
+      body: "Configure everything yourself — no support tickets to change a prompt, tweak the AI's tone, or add a channel.",
+    },
   },
   {
     Icon: DollarSign,
     iconBg: "bg-rose-100 dark:bg-rose-900/40",
     iconFg: "text-rose-700 dark:text-rose-300",
-    th: { title: "ราคา SME จ่ายได้", body: "เริ่มต้น ฿490/เดือน ไม่ต้องจ่าย setup fee ไม่มีสัญญาขั้นต่ำ ยกเลิกได้ทุกเมื่อ" },
-    en: { title: "SMB-friendly pricing", body: "Starts at ฿490/month. No setup fee, no minimum contract, cancel anytime." },
+    th: {
+      title: "ราคา SME จ่ายได้",
+      body: "เริ่มต้น ฿490/เดือน ไม่ต้องจ่าย setup fee ไม่มีสัญญาขั้นต่ำ ยกเลิกได้ทุกเมื่อ",
+    },
+    en: {
+      title: "SMB-friendly pricing",
+      body: "Starts at ฿490/month. No setup fee, no minimum contract, cancel anytime.",
+    },
   },
   {
     Icon: BarChart3,
     iconBg: "bg-sky-100 dark:bg-sky-900/40",
     iconFg: "text-sky-700 dark:text-sky-300",
-    th: { title: "Analytics ครบ", body: "ดู volume แชท อัตราการตอบ AI resolution rate และ performance ทีม real-time" },
-    en: { title: "Full analytics", body: "See chat volume, AI resolution rate, and team performance in real time." },
+    th: {
+      title: "Analytics ครบ",
+      body: "ดู volume แชท อัตราการตอบ AI resolution rate และ performance ทีม real-time",
+    },
+    en: {
+      title: "Full analytics",
+      body: "See chat volume, AI resolution rate, and team performance in real time.",
+    },
   },
   {
     Icon: LinkIcon,
     iconBg: "bg-emerald-50 dark:bg-emerald-950/40",
     iconFg: "text-emerald-700 dark:text-emerald-300",
-    th: { title: "เชื่อมง่ายใน 5 นาที", body: "คัดลอก webhook URL วาง token แค่นี้พอ ไม่ต้องจ้างโปรแกรมเมอร์ ไม่ต้องรู้เรื่อง API" },
-    en: { title: "Connect in 5 minutes", body: "Copy a webhook URL, paste a token — done. No developers, no API knowledge needed." },
+    th: {
+      title: "เชื่อมง่ายใน 5 นาที",
+      body: "คัดลอก webhook URL วาง token แค่นี้พอ ไม่ต้องจ้างโปรแกรมเมอร์ ไม่ต้องรู้เรื่อง API",
+    },
+    en: {
+      title: "Connect in 5 minutes",
+      body: "Copy a webhook URL, paste a token — done. No developers, no API knowledge needed.",
+    },
   },
 ];
 
@@ -176,7 +212,7 @@ export default function HomePage() {
           href="/"
           className="mr-auto text-lg font-extrabold tracking-tight text-brand-600"
         >
-          Omni<span className="text-ink">Chat</span>
+          Top<span className="text-ink">Dee</span>
         </Link>
         <CompactPreferences />
         <Link href="/login">
@@ -225,7 +261,10 @@ export default function HomePage() {
         <span className="text-sm font-medium text-ink-faint">
           {t("landing.channels.label")}
         </span>
-        <ChannelBadge channel="line" icon={<MessageCircle className="h-4 w-4" />}>
+        <ChannelBadge
+          channel="line"
+          icon={<MessageCircle className="h-4 w-4" />}
+        >
           LINE OA
         </ChannelBadge>
         <ChannelBadge channel="fb" icon={<Facebook className="h-4 w-4" />}>
