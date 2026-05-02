@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Icons live in lucide-react now — see /src/components/ui/Icon.tsx.
+   FontAwesome was removed in the icon-system migration; if you ever need
+   a brand icon that's not in lucide, add it to that module rather than
+   bringing FA back. */
+
+/* ──────────────────────────────────────────────────────────────────
+   Theme tokens.
+   Light values live on :root, dark values on .dark — flipping the
+   class on <html> retints the entire UI without re-rendering anything.
+   Each value is the RGB triple so Tailwind's `<alpha-value>` slot in
+   tailwind.config.ts works (e.g. bg-card/40, text-ink-muted/70).
+   ────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* surfaces */
+  --bg-page: 248 250 252;       /* slate-50 */
+  --bg-card: 255 255 255;
+  --bg-elevated: 255 255 255;   /* same as card in light */
+  --bg-muted: 241 245 249;      /* slate-100 — subtle row bg */
+
+  /* borders */
+  --border: 226 232 240;        /* slate-200 */
+  --border-strong: 203 213 225; /* slate-300 */
+
+  /* text */
+  --text-strong: 30 41 59;      /* slate-800 */
+  --text-muted: 100 116 139;    /* slate-500 */
+  --text-faint: 148 163 184;    /* slate-400 */
+  --text-invert: 255 255 255;   /* on brand bg */
+
+  /* brand soft fills */
+  --brand-soft: 237 233 254;    /* brand-100 */
+  --brand-softer: 245 243 255;  /* brand-50 */
+
+  color-scheme: light;
+}
+
+.dark {
+  /* surfaces — slate-950 page, slate-900 cards, slate-800 muted */
+  --bg-page: 7 11 22;
+  --bg-card: 17 24 39;
+  --bg-elevated: 23 33 51;
+  --bg-muted: 30 41 59;
+
+  /* borders — slate-700/800 */
+  --border: 51 65 85;
+  --border-strong: 71 85 105;
+
+  /* text */
+  --text-strong: 226 232 240;   /* slate-200 */
+  --text-muted: 148 163 184;    /* slate-400 */
+  --text-faint: 100 116 139;    /* slate-500 */
+  --text-invert: 255 255 255;
+
+  /* brand soft fills — darker tints so they read against dark cards */
+  --brand-soft: 49 27 109;
+  --brand-softer: 35 19 80;
+
+  color-scheme: dark;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: rgb(var(--bg-page));
+  color: rgb(var(--text-strong));
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+/* Auth gradient also needs a dark variant */
+.bg-auth-gradient {
+  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%);
+}
+.dark .bg-auth-gradient {
+  background: linear-gradient(135deg, #0b1226 0%, #181434 100%);
+}
+
+/* Page transition shared by app pages — matches the prototype's fadeIn. */
+.page-enter {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Hide scrollbar utility (used by the inbox conversation list & tab strip).
+   Both `.no-scrollbar` and `.scrollbar-hide` are aliases — we accept either. */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.no-scrollbar,
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
