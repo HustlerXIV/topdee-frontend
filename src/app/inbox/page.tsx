@@ -70,9 +70,11 @@ export default function InboxPage() {
     };
   }, [refresh, loadMessages]);
 
-  // Lazy-load messages the first time a conversation is selected.
+  // Always force-fetch on selection — a stale `loaded=true` flag from
+  // earlier could otherwise leave the chat box empty even though the
+  // server has messages. Cheap call (server caps at 500 messages).
   useEffect(() => {
-    if (selectedId) loadMessages(selectedId);
+    if (selectedId) loadMessages(selectedId, true);
   }, [selectedId, loadMessages]);
 
   const filtered = useMemo(() => {
@@ -248,14 +250,21 @@ function ChatArea({
     <section className="flex h-full flex-col">
       {/* Header */}
       <header className="flex items-center gap-3 border-b border-line2 bg-card px-5 py-3.5">
-        <Avatar initials={conv.initials} tone={conv.avatarTone} size="md" />
-        <div>
-          <h4 className="text-[15px] font-semibold text-ink">
-            {conv.customerName}
-          </h4>
-          <p className="text-xs text-ink-faint">
+        <Avatar
+          initials={conv.initials}
+          tone={conv.avatarTone}
+          size="md"
+          badge={<ChannelDot channel={conv.channel} />}
+        />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="truncate text-[15px] font-semibold text-ink">
+              {conv.customerName}
+            </h4>
+            <ChannelPill channel={conv.channel} />
+          </div>
+          <p className="mt-0.5 text-xs text-ink-faint">
             <span className="text-emerald-500">●</span>{" "}
-            {channelLabel(conv.channel)} ·{" "}
             {conv.online ? t("common.online") : t("common.offline")}
           </p>
         </div>
@@ -273,6 +282,17 @@ function ChatArea({
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto bg-page p-5">
+        {conv.messages.length === 0 && (
+          <div className="flex h-full items-center justify-center">
+            <div className="rounded-2xl border border-line2 bg-card px-5 py-4 text-center text-sm text-ink-faint">
+              {conv.loaded ? (
+                <>No messages yet in this conversation.</>
+              ) : (
+                <>Loading messages…</>
+              )}
+            </div>
+          </div>
+        )}
         <div className="flex flex-col gap-4">
           {conv.messages.map((m) => (
             <div
@@ -377,4 +397,23 @@ function channelLabel(c: "line" | "fb" | "ig" | "web") {
   return { line: "LINE OA", fb: "Facebook", ig: "Instagram", web: "Webchat" }[
     c
   ];
+}
+
+// ChannelPill — small color-coded label that lives next to the customer
+// name in the chat header. Makes it impossible to miss which platform
+// you're replying on (LINE pricing, FB Messenger, etc. behave differently
+// so it's worth keeping front-of-mind).
+function ChannelPill({ channel }: { channel: "line" | "fb" | "ig" | "web" }) {
+  const map = {
+    line: { label: "LINE OA", classes: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+    fb:   { label: "Facebook", classes: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300" },
+    ig:   { label: "Instagram", classes: "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300" },
+    web:  { label: "Webchat", classes: "bg-brand-soft text-brand-700 dark:text-brand-200" },
+  } as const;
+  const m = map[channel];
+  return (
+    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-bold", m.classes)}>
+      {m.label}
+    </span>
+  );
 }

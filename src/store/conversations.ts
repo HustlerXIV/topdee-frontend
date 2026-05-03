@@ -236,14 +236,24 @@ export const useConversations = create<State>((set, get) => ({
     try {
       const msgs = await api.inbox.messages(id);
       const mapped = fromApiMessages(msgs);
+      // Helpful for debugging the empty-chat-box case: a one-line console
+      // log per fetch tells us if the API returned 0 messages or if the
+      // mapping silently dropped them.
+      if (typeof window !== 'undefined' && (window as { __DEBUG_INBOX?: boolean }).__DEBUG_INBOX) {
+        console.log('[inbox] loadMessages', id, 'got', msgs.length, 'mapped', mapped.length);
+      }
       set((s) => ({
         conversations: s.conversations.map((c) =>
           c.id === id ? { ...c, messages: mapped, loaded: true } : c,
         ),
+        // Clear any stale error from a prior failed load.
+        error: null,
       }));
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) return;
-      set({ error: e instanceof Error ? e.message : 'failed to load messages' });
+      const msg = e instanceof Error ? e.message : 'failed to load messages';
+      console.error('[inbox] loadMessages failed', id, msg);
+      set({ error: msg });
     }
   },
 
