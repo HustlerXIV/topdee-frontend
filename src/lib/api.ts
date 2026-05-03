@@ -21,18 +21,41 @@ export type KnowledgeBase = {
   updated_at: string;
 };
 
-export type ChannelStatus = {
-  facebook?: {
-    page_id: string;
-    page_name: string;
-    connected: boolean;
-    connected_at: string;
-  };
-  line?: {
-    channel_id: string;
-    connected: boolean;
-    connected_at: string;
-  };
+// One bound external account (FB page, LINE OA, etc.). Tenants can have many
+// of these per provider, capped by their plan tier.
+//
+// `webhook_url` is the URL the customer pastes into the platform's console
+// (e.g. LINE Developers → Messaging API → Webhook URL). We compute it
+// server-side from BACKEND_PUBLIC_URL so the dashboard never has to know
+// the backend's public hostname.
+export type ChannelConnection = {
+  id: string;
+  provider: 'facebook' | 'line' | string;
+  external_id: string;
+  display_name: string;
+  status: 'active' | 'error' | 'disabled' | string;
+  error?: string;
+  webhook_url: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChannelsResponse = {
+  connections: ChannelConnection[];
+  /** Per-provider plan caps, e.g. { facebook: 3, line: 1 } */
+  limits: Record<string, number>;
+  /** Per-provider current usage, e.g. { facebook: 2 } */
+  used: Record<string, number>;
+};
+
+export type FacebookOAuthStartResp = {
+  login_url: string;
+  state: string;
+};
+
+export type FacebookOAuthPagesResp = {
+  state: string;
+  pages: { id: string; name: string; category?: string }[];
 };
 
 export type Message = {
@@ -41,7 +64,20 @@ export type Message = {
   role: 'user' | 'ai' | 'human';
   content: string;
   channel: string;
+  external_user_id?: string;
   created_at: string;
+};
+
+// One row in the inbox list — aggregated from the messages collection.
+export type InboxConversation = {
+  id: string;                     // conversation_id, e.g. "line:Uxxxx:Uyyyy"
+  channel: string;                // "line" | "facebook" | …
+  external_user_id: string;
+  customer_name: string;          // "LINE User abcd12"
+  preview: string;                // last message, rune-truncated
+  last_message_at: string;
+  last_sender_role: 'user' | 'ai' | 'human';
+  message_count: number;
 };
 
 // ── Team / members ────────────────────────────────────────────────
@@ -358,25 +394,76 @@ export const api = {
   },
 
   channels: {
-    get: () => request<ChannelStatus>('/api/v1/channels'),
-    connectFacebook: (input: { page_id: string; page_name?: string; page_access_token: string }) =>
-      request<void>('/api/v1/channels/facebook', {
-        method: 'PUT',
-        body: JSON.stringify(input),
-      }),
-    disconnectFacebook: () =>
-      request<void>('/api/v1/channels/facebook', { method: 'DELETE' }),
+    /** List every connection the tenant has, plus plan limits + usage. */
+    list: () => request<ChannelsResponse>('/api/v1/channels'),
+
+    /** Disconnect a specific connection by id. */
+    disconnect: (id: string) =>
+      request<void>(`/api/v1/channels/${id}`, { method: 'DELETE' }),
+
+    /** Connect a LINE Official Account. We mint the access token automatically
+     * — the user only needs Channel ID + Channel Secret. The response carries
+     * a `webhook_url` to paste into LINE Developers → Messaging API. */
     connectLine: (input: {
       channel_id: string;
       channel_secret: string;
-      channel_access_token: string;
     }) =>
-      request<void>('/api/v1/channels/line', {
+      request<ChannelConnection>('/api/v1/channels/line', {
         method: 'PUT',
         body: JSON.stringify(input),
       }),
-    disconnectLine: () =>
-      request<void>('/api/v1/channels/line', { method: 'DELETE' }),
+
+    /** Returns a URL pattern with `{channel_id}` placeholder so the dashboard
+     * can render a live preview as the user types. */
+    webhookUrlTemplate: (provider: string = 'line') =>
+      request<{ provider: string; template: string }>(
+        `/api/v1/channels/webhook-url-template?provider=${encodeURIComponent(provider)}`,
+      ),
+
+    facebook: {
+      /** Step 1: get the Facebook Login URL. Frontend should redirect to it. */
+      oauthStart: () =>
+        request<FacebookOAuthStartResp>(
+          '/api/v1/channels/facebook/oauth/start',
+          { method: 'POST' },
+        ),
+      /** Step 3: list pages discovered during the OAuth dance. */
+      oauthPages: (state: string) =>
+        request<FacebookOAuthPagesResp>(
+          `/api/v1/channels/facebook/oauth/pages?state=${encodeURIComponent(state)}`,
+        ),
+      /** Step 4: persist the user's chosen pages as connections. */
+      oauthConnect: (state: string, page_ids: string[]) =>
+        request<{ connections: ChannelConnection[] }>(
+          '/api/v1/channels/facebook/oauth/connect',
+          {
+            method: 'POST',
+            body: JSON.stringify({ state, page_ids }),
+          },
+        ),
+    },
+  },
+
+  inbox: {
+    /** List real customer conversations, newest first. Optionally filter
+     * by channel (e.g. "line", "facebook"). */
+    list: (channel?: string) => {
+      const qs = channel ? `?channel=${encodeURIComponent(channel)}` : '';
+      return request<InboxConversation[]>(`/api/v1/inbox/conversations${qs}`);
+    },
+    /** Full transcript of one conversation, oldest first. */
+    messages: (id: string) =>
+      request<Message[]>(
+        `/api/v1/inbox/conversations/${encodeURIComponent(id)}/messages`,
+      ),
+    /** Send a manual reply to a customer through the right provider's push
+     * API (LINE push, FB Send API). Persists as role="human" so the
+     * conversation history shows it as an agent message. */
+    send: (id: string, text: string) =>
+      request<Message>(
+        `/api/v1/inbox/conversations/${encodeURIComponent(id)}/messages`,
+        { method: 'POST', body: JSON.stringify({ text }) },
+      ),
   },
 
   playground: {

@@ -6,6 +6,7 @@ import { Avatar, ChannelDot } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useConversations, type Conversation } from "@/store/conversations";
+import { ApiError } from "@/lib/api";
 import { useUI } from "@/store/ui";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/cn";
@@ -19,17 +20,60 @@ export default function InboxPage() {
     selectedId,
     filter,
     search,
+    loading,
+    error,
     select,
     setFilter,
     setSearch,
-    appendMessage,
-    seedDemo,
+    refresh,
+    loadMessages,
+    sendMessage,
   } = useConversations();
   const showToast = useUI((s) => s.showToast);
 
+  // Initial load + refresh-on-focus + polling. Polling is paused while the
+  // tab is hidden so we don't burn the user's battery in the background.
   useEffect(() => {
-    seedDemo();
-  }, [seedDemo]);
+    refresh();
+    const onFocus = () => refresh();
+    window.addEventListener('focus', onFocus);
+
+    // Poll the conversation list every 5s for fresh customer messages.
+    // The active conversation's messages are also re-fetched (force=true)
+    // so the chat box updates in near-real-time without a WebSocket.
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const startPolling = () => {
+      if (timer) return;
+      timer = setInterval(() => {
+        refresh();
+        const id = useConversations.getState().selectedId;
+        if (id) loadMessages(id, true);
+      }, 5000);
+    };
+    const stopPolling = () => {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    };
+    const onVisibility = () => {
+      if (document.hidden) stopPolling();
+      else startPolling();
+    };
+    if (!document.hidden) startPolling();
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+      stopPolling();
+    };
+  }, [refresh, loadMessages]);
+
+  // Lazy-load messages the first time a conversation is selected.
+  useEffect(() => {
+    if (selectedId) loadMessages(selectedId);
+  }, [selectedId, loadMessages]);
 
   const filtered = useMemo(() => {
     return conversations
@@ -83,6 +127,18 @@ export default function InboxPage() {
             })}
           </div>
           <div className="flex-1 overflow-y-auto">
+            {loading && conversations.length === 0 && (
+              <div className="p-6 text-center text-xs text-ink-faint">Loading…</div>
+            )}
+            {error && (
+              <div className="p-4 text-xs text-red-500">{error}</div>
+            )}
+            {!loading && filtered.length === 0 && (
+              <div className="p-6 text-center text-[13px] text-ink-faint">
+                No conversations yet. Send a message to your connected LINE OA
+                from your phone — it'll show up here.
+              </div>
+            )}
             {filtered.map((c) => (
               <ConversationRow
                 key={c.id}
@@ -98,18 +154,19 @@ export default function InboxPage() {
         {selected ? (
           <ChatArea
             conv={selected}
-            onSend={(text) => {
-              appendMessage(selected.id, {
-                id: "m-" + Date.now(),
-                direction: "out",
-                author: "agent",
-                text,
-                time: new Date().toLocaleTimeString("th-TH", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-              });
-              showToast(t("inbox.toast.sent"), "success");
+            onSend={async (text) => {
+              try {
+                await sendMessage(selected.id, text);
+                showToast(t("inbox.toast.sent"), "success");
+              } catch (e) {
+                const msg =
+                  e instanceof ApiError
+                    ? e.message
+                    : e instanceof Error
+                      ? e.message
+                      : "send failed";
+                showToast(msg, "default");
+              }
             }}
           />
         ) : (
