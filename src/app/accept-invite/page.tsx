@@ -38,7 +38,13 @@ function AcceptInviteInner() {
     setBusy(true);
     try {
       const res = await api.acceptInvite({ token, name, password });
-      setSession(res.token, { email: res.user.email, workspace: '' });
+      setSession(res.token, {
+        name: res.user.name,
+        email: res.user.email,
+        workspace: '',
+        role: res.user.role,
+        isAdmin: res.user.is_platform_admin,
+      });
       router.replace('/inbox');
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'accept failed');

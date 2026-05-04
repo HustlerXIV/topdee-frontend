@@ -5,7 +5,7 @@
  * here so re-selecting is instant.
  */
 import { create } from 'zustand';
-import { api, ApiError, type InboxConversation, type Message } from '@/lib/api';
+import { api, ApiError, type InboxConversation, type Message, type MessageAttachment } from '@/lib/api';
 
 export type Channel = 'line' | 'fb' | 'ig' | 'web';
 export type ConvKind = 'ai' | 'team';
@@ -13,8 +13,9 @@ export type ConvKind = 'ai' | 'team';
 export type ConvMessage = {
   id: string;
   direction: 'in' | 'out';
-  author: 'customer' | 'ai' | 'agent';
+  author: 'customer' | 'ai' | 'agent' | 'suggestion';
   text: string;
+  attachments: MessageAttachment[];
   time: string; // already formatted for display
 };
 
@@ -122,7 +123,7 @@ function customerKey(c: InboxConversation): string {
  * customer was the last to speak, classify by *whether* an AI ever
  * replied — but with what we have we just split on last_sender_role. */
 function kindFor(role: InboxConversation['last_sender_role']): ConvKind {
-  return role === 'human' ? 'team' : 'ai';
+  return role === 'human' || role === 'suggestion' || role === 'user' ? 'team' : 'ai';
 }
 
 function fromApiList(rows: InboxConversation[]): Conversation[] {
@@ -154,12 +155,20 @@ function shortTime(iso: string): string {
 
 function fromApiMessages(msgs: Message[]): ConvMessage[] {
   return msgs.map((m) => {
-    const isOutbound = m.role === 'ai' || m.role === 'human';
+    const isOutbound = m.role === 'ai' || m.role === 'human' || m.role === 'suggestion';
     return {
       id: m.id,
       direction: isOutbound ? 'out' : 'in',
-      author: m.role === 'ai' ? 'ai' : m.role === 'human' ? 'agent' : 'customer',
+      author:
+        m.role === 'ai'
+          ? 'ai'
+          : m.role === 'human'
+            ? 'agent'
+            : m.role === 'suggestion'
+              ? 'suggestion'
+              : 'customer',
       text: m.content,
+      attachments: m.attachments ?? [],
       time: shortTime(m.created_at),
     };
   });
@@ -268,6 +277,7 @@ export const useConversations = create<State>((set, get) => ({
       direction: 'out',
       author: 'agent',
       text,
+      attachments: [],
       time: new Date().toLocaleTimeString(undefined, {
         hour: '2-digit',
         minute: '2-digit',
@@ -301,6 +311,7 @@ export const useConversations = create<State>((set, get) => ({
                     direction: 'out',
                     author: 'agent',
                     text: saved.content,
+                    attachments: saved.attachments ?? [],
                     time: shortTime(saved.created_at),
                   }
                 : m,

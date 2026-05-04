@@ -19,6 +19,7 @@ const USER_KEY = 'topdee_user';
 export type Role = 'owner' | 'admin' | 'agent' | 'viewer' | '';
 
 export type User = {
+  name?: string;
   email: string;
   workspace: string; // tenant_name set during register/onboarding
   role?: Role;

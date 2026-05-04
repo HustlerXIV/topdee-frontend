@@ -36,8 +36,8 @@ export function AppShell({
 
       <main
         className={cn(
-          "flex-1 overflow-y-auto",
-          withPadding ? "" : "flex flex-col",
+          "flex-1",
+          withPadding ? "overflow-y-auto" : "flex min-h-0 flex-col overflow-hidden",
         )}
       >
         {children}

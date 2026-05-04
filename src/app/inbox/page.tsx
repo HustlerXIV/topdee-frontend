@@ -6,11 +6,12 @@ import { Avatar, ChannelDot } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useConversations, type Conversation } from "@/store/conversations";
-import { ApiError } from "@/lib/api";
+import { useAuth } from "@/store/auth";
+import { API_URL, ApiError, type MessageAttachment } from "@/lib/api";
 import { useUI } from "@/store/ui";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/cn";
-import { User, Tag, Share2, Check, Sparkles, Send as SendIcon } from "@/components/ui/Icon";
+import { User, Tag, Share2, Check, Sparkles, Send as SendIcon, X } from "@/components/ui/Icon";
 import type { ComponentType } from "react";
 
 export default function InboxPage() {
@@ -29,7 +30,10 @@ export default function InboxPage() {
     loadMessages,
     sendMessage,
   } = useConversations();
+  const user = useAuth((s) => s.user);
   const showToast = useUI((s) => s.showToast);
+  const agentName = accountDisplayName(user?.name, user?.email);
+  const agentInitial = accountInitial(agentName);
 
   // Initial load + refresh-on-focus + polling. Polling is paused while the
   // tab is hidden so we don't burn the user's battery in the background.
@@ -92,9 +96,9 @@ export default function InboxPage() {
 
   return (
     <AppShell withPadding={false}>
-      <div className="grid h-screen grid-cols-1 md:grid-cols-[300px_1fr]">
+      <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[300px_1fr]">
         {/* Conversation list */}
-        <aside className="hidden flex-col border-r border-line2 bg-card md:flex">
+        <aside className="hidden min-h-0 flex-col border-r border-line2 bg-card md:flex">
           <div className="border-b border-line2 p-3.5">
             <Input
               placeholder={t("inbox.search")}
@@ -128,7 +132,7 @@ export default function InboxPage() {
               );
             })}
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {loading && conversations.length === 0 && (
               <div className="p-6 text-center text-xs text-ink-faint">Loading…</div>
             )}
@@ -156,6 +160,8 @@ export default function InboxPage() {
         {selected ? (
           <ChatArea
             conv={selected}
+            agentName={agentName}
+            agentInitial={agentInitial}
             onSend={async (text) => {
               try {
                 await sendMessage(selected.id, text);
@@ -226,18 +232,30 @@ function ConversationRow({
 
 function ChatArea({
   conv,
+  agentName,
+  agentInitial,
   onSend,
 }: {
   conv: Conversation;
+  agentName: string;
+  agentInitial: string;
   onSend: (text: string) => void;
 }) {
   const t = useT();
   const [draft, setDraft] = useState("");
+  const [previewImage, setPreviewImage] = useState<{
+    src: string;
+    alt: string;
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const visibleMessages = conv.messages.filter((m) => m.author !== "suggestion");
+  const latestSuggestion = [...conv.messages]
+    .reverse()
+    .find((m) => m.author === "suggestion");
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [conv.messages.length]);
+  }, [visibleMessages.length]);
 
   function send() {
     const text = draft.trim();
@@ -247,7 +265,7 @@ function ChatArea({
   }
 
   return (
-    <section className="flex h-full flex-col">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Header */}
       <header className="flex items-center gap-3 border-b border-line2 bg-card px-5 py-3.5">
         <Avatar
@@ -281,8 +299,8 @@ function ChatArea({
       </header>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-page p-5">
-        {conv.messages.length === 0 && (
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-page p-5">
+        {visibleMessages.length === 0 && (
           <div className="flex h-full items-center justify-center">
             <div className="rounded-2xl border border-line2 bg-card px-5 py-4 text-center text-sm text-ink-faint">
               {conv.loaded ? (
@@ -294,7 +312,7 @@ function ChatArea({
           </div>
         )}
         <div className="flex flex-col gap-4">
-          {conv.messages.map((m) => (
+          {visibleMessages.map((m) => (
             <div
               key={m.id}
               className={cn(
@@ -306,8 +324,20 @@ function ChatArea({
             >
               <Avatar
                 size="sm"
-                tone={m.author === "ai" ? "ai" : conv.avatarTone}
-                initials={m.author === "ai" ? "AI" : conv.initials}
+                tone={
+                  m.author === "ai"
+                    ? "ai"
+                    : m.author === "agent"
+                      ? "gray"
+                      : conv.avatarTone
+                }
+                initials={
+                  m.author === "ai"
+                    ? "AI"
+                    : m.author === "agent"
+                      ? agentInitial
+                      : conv.initials
+                }
               />
               <div>
                 <div
@@ -318,7 +348,19 @@ function ChatArea({
                       : "rounded-bl-md border border-line2 bg-card text-ink",
                   )}
                 >
-                  {m.text}
+                  {!(m.attachments.length > 0 && m.text === "[Image]") && (
+                    <div>{m.text}</div>
+                  )}
+                  {m.attachments
+                    .filter((a) => a.type === "image" && a.url)
+                    .map((a, index) => (
+                      <AttachmentImage
+                        key={a.id ?? a.url ?? index}
+                        attachment={a}
+                        compact={m.text !== "[Image]"}
+                        onOpen={(src, alt) => setPreviewImage({ src, alt })}
+                      />
+                    ))}
                 </div>
                 <div
                   className={cn(
@@ -327,6 +369,7 @@ function ChatArea({
                   )}
                 >
                   {m.time}
+                  {m.author === "agent" && ` · ${agentName}`}
                   {m.author === "ai" && " · AI ✓✓"}
                 </div>
               </div>
@@ -335,17 +378,22 @@ function ChatArea({
         </div>
       </div>
 
-      {/* AI suggestion */}
-      <div className="mx-5 mb-3 flex items-start gap-2.5 rounded-2xl border border-brand-300 bg-brand-soft px-4 py-3 text-[13px] text-brand-700 dark:text-brand-200">
-        <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0" />
-        <span>
-          <strong>{t("inbox.aiSuggestion.label")}</strong>{" "}
-          {t("inbox.aiSuggestion.body")}
-        </span>
-        <Button size="sm" className="ml-auto whitespace-nowrap">
-          {t("inbox.aiSuggestion.use")}
-        </Button>
-      </div>
+      {latestSuggestion && (
+        <div className="mx-5 mb-3 flex items-start gap-2.5 rounded-2xl border border-brand-300 bg-brand-soft px-4 py-3 text-[13px] text-brand-700 dark:text-brand-200">
+          <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0" />
+          <span>
+            <strong>{t("inbox.aiSuggestion.label")}</strong>{" "}
+            {latestSuggestion.text}
+          </span>
+          <Button
+            size="sm"
+            className="ml-auto whitespace-nowrap"
+            onClick={() => setDraft(latestSuggestion.text)}
+          >
+            {t("inbox.aiSuggestion.use")}
+          </Button>
+        </div>
+      )}
 
       {/* Input */}
       <div className="flex items-end gap-2.5 border-t border-line2 bg-card px-5 py-3.5">
@@ -366,7 +414,128 @@ function ChatArea({
           {t("common.send")}
         </Button>
       </div>
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            type="button"
+            aria-label="Close image preview"
+            onClick={() => setPreviewImage(null)}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition-colors hover:bg-white/20"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={previewImage.src}
+            alt={previewImage.alt}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[92vh] max-w-[92vw] rounded-xl object-contain shadow-2xl"
+          />
+        </div>
+      )}
     </section>
+  );
+}
+
+function accountInitial(value?: string): string {
+  const trimmed = value?.trim();
+  return trimmed?.[0]?.toUpperCase() ?? "A";
+}
+
+function accountDisplayName(name?: string, email?: string): string {
+  const trimmedName = name?.trim();
+  if (trimmedName) return trimmedName;
+  const trimmedEmail = email?.trim();
+  if (trimmedEmail) return trimmedEmail;
+  return "Admin";
+}
+
+function AttachmentImage({
+  attachment,
+  compact,
+  onOpen,
+}: {
+  attachment: MessageAttachment;
+  compact?: boolean;
+  onOpen?: (src: string, alt: string) => void;
+}) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const rawUrl = attachment.url ?? "";
+  const src = rawUrl.startsWith("/api/") ? `${API_URL}${rawUrl}` : rawUrl;
+  const needsAuth = rawUrl.startsWith("/api/") || src.startsWith(API_URL);
+
+  useEffect(() => {
+    if (!src || !needsAuth) return;
+    let cancelled = false;
+    let nextObjectUrl: string | null = null;
+    const token =
+      typeof window === "undefined"
+        ? null
+        : window.localStorage.getItem("topdee_token");
+
+    fetch(src, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("image load failed");
+        return res.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        nextObjectUrl = URL.createObjectURL(blob);
+        setObjectUrl(nextObjectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+
+    return () => {
+      cancelled = true;
+      if (nextObjectUrl) URL.revokeObjectURL(nextObjectUrl);
+    };
+  }, [needsAuth, src]);
+
+  if (failed) {
+    return (
+      <div className={cn(compact && "mt-2", "text-xs opacity-80")}>
+        Image could not be loaded.
+      </div>
+    );
+  }
+
+  const displaySrc = needsAuth ? objectUrl : src;
+  if (!displaySrc) {
+    return (
+      <div className={cn(compact && "mt-2", "text-xs opacity-80")}>
+        Loading image...
+      </div>
+    );
+  }
+
+  const alt = attachment.name || "Customer upload";
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen?.(displaySrc, alt)}
+      className={cn(
+        compact && "mt-2",
+        "block overflow-hidden rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-brand-300",
+      )}
+      title="Open image"
+    >
+      <img
+        src={displaySrc}
+        alt={alt}
+        className="max-h-72 max-w-full object-contain transition-transform hover:scale-[1.01]"
+      />
+    </button>
   );
 }
 

@@ -1,7 +1,7 @@
 // Minimal typed client for the Go backend. Lives in the browser; reads token
 // from localStorage. For SSR/route handlers, pass the token explicitly.
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
 
 export type KnowledgeFile = {
   filename: string;
@@ -61,11 +61,20 @@ export type FacebookOAuthPagesResp = {
 export type Message = {
   id: string;
   conversation_id: string;
-  role: 'user' | 'ai' | 'human';
+  role: 'user' | 'ai' | 'human' | 'suggestion';
   content: string;
   channel: string;
   external_user_id?: string;
+  attachments?: MessageAttachment[];
   created_at: string;
+};
+
+export type MessageAttachment = {
+  id?: string;
+  type: 'image' | 'video' | 'audio' | 'file' | string;
+  url?: string;
+  content_type?: string;
+  name?: string;
 };
 
 // One row in the inbox list — aggregated from the messages collection.
@@ -76,7 +85,7 @@ export type InboxConversation = {
   customer_name: string;          // "LINE User abcd12"
   preview: string;                // last message, rune-truncated
   last_message_at: string;
-  last_sender_role: 'user' | 'ai' | 'human';
+  last_sender_role: 'user' | 'ai' | 'human' | 'suggestion';
   message_count: number;
 };
 
@@ -92,6 +101,16 @@ export type Member = {
   is_platform_admin?: boolean;
   suspended?: boolean;
   created_at: string;
+};
+
+export type AuthUser = {
+  id?: string;
+  tenant_id?: string;
+  name?: string;
+  email: string;
+  role?: Role;
+  is_platform_admin?: boolean;
+  isAdmin?: boolean;
 };
 
 // ── Platform admin ───────────────────────────────────────────────
@@ -233,13 +252,13 @@ export const api = {
   health: () => request<{ status: string }>('/health'),
 
   register: (tenant_name: string, email: string, password: string) =>
-    request<{ token: string }>('/api/v1/auth/register', {
+    request<{ token: string; user: AuthUser }>('/api/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify({ tenant_name, email, password }),
     }),
 
   login: (email: string, password: string) =>
-    request<{ token: string }>('/api/v1/auth/login', {
+    request<{ token: string; user: AuthUser }>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
