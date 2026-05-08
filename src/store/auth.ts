@@ -32,6 +32,7 @@ type AuthState = {
   hydrated: boolean;
   hydrate: () => void;
   setSession: (token: string, user: User) => void;
+  setUser: (user: User) => void;
   logout: () => void;
 };
 
@@ -74,6 +75,13 @@ export const useAuth = create<AuthState>((set) => ({
       window.localStorage.setItem(USER_KEY, JSON.stringify(user));
     }
     set({ token, user });
+  },
+
+  setUser: (user) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+    }
+    set({ user });
   },
 
   logout: () => {

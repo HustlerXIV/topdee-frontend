@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell, PageBody, PageHeader } from "@/components/layout/AppShell";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -30,6 +30,7 @@ import { useUI } from "@/store/ui";
 import { useT } from "@/lib/i18n/useT";
 import { type DictKey } from "@/lib/i18n/dictionary";
 import { cn } from "@/lib/cn";
+import { api, ApiError } from "@/lib/api";
 
 type Tab = "workspace" | "account" | "notify" | "api";
 
@@ -45,8 +46,113 @@ export default function SettingsPage() {
   const t = useT();
   const showToast = useUI((s) => s.showToast);
   const logout = useAuth((s) => s.logout);
+  const setUser = useAuth((s) => s.setUser);
   const user = useAuth((s) => s.user);
   const [tab, setTab] = useState<Tab>("workspace");
+  const [loading, setLoading] = useState(true);
+  const [savingWorkspace, setSavingWorkspace] = useState(false);
+  const [savingAccount, setSavingAccount] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState(user?.workspace || "");
+  const [timezone, setTimezone] = useState("Asia/Bangkok");
+  const [website, setWebsite] = useState("");
+  const [businessType, setBusinessType] = useState("ecommerce");
+  const [accountName, setAccountName] = useState(user?.name || "");
+  const [accountEmail, setAccountEmail] = useState(user?.email || "");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  useEffect(() => {
+    api.settings
+      .get()
+      .then((s) => {
+        setAccountName(s.account.name || "");
+        setAccountEmail(s.account.email || "");
+        setWorkspaceName(s.workspace.name || "");
+        setTimezone(s.workspace.timezone || "Asia/Bangkok");
+        setWebsite(s.workspace.website || "");
+        setBusinessType(s.workspace.business_type || "ecommerce");
+        if (user) {
+          setUser({
+            ...user,
+            name: s.account.name,
+            email: s.account.email,
+            workspace: s.workspace.name,
+            role: (s.account.role as typeof user.role) || user.role,
+          });
+        }
+      })
+      .catch((e) => {
+        if (!(e instanceof ApiError && e.status === 401)) {
+          showToast(e instanceof Error ? e.message : "settings load failed", "error");
+        }
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function saveWorkspace() {
+    setSavingWorkspace(true);
+    try {
+      const saved = await api.settings.updateWorkspace({
+        name: workspaceName.trim(),
+        timezone,
+        website: website.trim(),
+        business_type: businessType,
+      });
+      setWorkspaceName(saved.name);
+      setTimezone(saved.timezone);
+      setWebsite(saved.website || "");
+      setBusinessType(saved.business_type || "ecommerce");
+      if (user) setUser({ ...user, workspace: saved.name });
+      showToast(t("settings.toast.saved"), "success");
+    } catch (e) {
+      showToast(e instanceof ApiError ? e.message : "save failed", "error");
+    } finally {
+      setSavingWorkspace(false);
+    }
+  }
+
+  async function saveAccount() {
+    setSavingAccount(true);
+    try {
+      const saved = await api.settings.updateAccount({
+        name: accountName.trim(),
+        email: accountEmail.trim(),
+      });
+      setAccountName(saved.name || "");
+      setAccountEmail(saved.email || "");
+      if (user) setUser({ ...user, name: saved.name, email: saved.email });
+      showToast(t("settings.toast.saved"), "success");
+    } catch (e) {
+      showToast(e instanceof ApiError ? e.message : "save failed", "error");
+    } finally {
+      setSavingAccount(false);
+    }
+  }
+
+  async function savePassword() {
+    if (newPassword !== confirmPassword) {
+      showToast("Password confirmation does not match", "error");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await api.settings.updatePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      showToast("Password changed", "success");
+    } catch (e) {
+      showToast(e instanceof ApiError ? e.message : "password change failed", "error");
+    } finally {
+      setSavingPassword(false);
+    }
+  }
 
   return (
     <AppShell>
@@ -93,30 +199,54 @@ export default function SettingsPage() {
               </div>
               <FormRow>
                 <FormGroup label="Workspace name">
-                  <Input defaultValue={user?.workspace || "StyleHub Shop"} />
+                  <Input
+                    value={workspaceName}
+                    onChange={(e) => setWorkspaceName(e.target.value)}
+                    disabled={loading}
+                  />
                 </FormGroup>
                 <FormGroup label="Timezone">
-                  <Select defaultValue="bangkok">
-                    <option value="bangkok">Asia/Bangkok (UTC+7)</option>
+                  <Select
+                    value={timezone}
+                    onChange={(e) => setTimezone(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="Asia/Bangkok">Asia/Bangkok (UTC+7)</option>
+                    <option value="UTC">UTC</option>
+                    <option value="Asia/Singapore">Asia/Singapore (UTC+8)</option>
+                    <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
                   </Select>
                 </FormGroup>
               </FormRow>
               <FormRow>
                 <FormGroup label="Website">
-                  <Input defaultValue="https://stylehub.co.th" />
+                  <Input
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://example.com"
+                    disabled={loading}
+                  />
                 </FormGroup>
                 <FormGroup label="Business type">
-                  <Select defaultValue="ecommerce">
+                  <Select
+                    value={businessType}
+                    onChange={(e) => setBusinessType(e.target.value)}
+                    disabled={loading}
+                  >
                     <option value="ecommerce">E-commerce</option>
                     <option value="food">Food & Beverage</option>
                     <option value="service">Service</option>
+                    <option value="realestate">Real Estate</option>
+                    <option value="health">Health & Beauty</option>
+                    <option value="other">Other</option>
                   </Select>
                 </FormGroup>
               </FormRow>
               <Button
-                onClick={() => showToast(t("settings.toast.saved"), "success")}
+                onClick={saveWorkspace}
+                disabled={loading || savingWorkspace}
               >
-                <Save className="h-4 w-4" /> {t("common.save")}
+                <Save className="h-4 w-4" /> {savingWorkspace ? "…" : t("common.save")}
               </Button>
             </Card>
 
@@ -137,39 +267,71 @@ export default function SettingsPage() {
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-2xl font-bold text-brand-600">
                   {(user?.email || "U").slice(0, 1).toUpperCase()}
                 </div>
-                <Button variant="outline" size="sm">
-                  {t("common.edit")}
-                </Button>
               </div>
               <FormRow>
                 <FormGroup label={t("common.name")}>
-                  <Input defaultValue="Win Chayutphon" />
+                  <Input
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                    disabled={loading}
+                  />
                 </FormGroup>
                 <FormGroup label={t("common.email")}>
-                  <Input defaultValue={user?.email || ""} />
+                  <Input
+                    type="email"
+                    value={accountEmail}
+                    onChange={(e) => setAccountEmail(e.target.value)}
+                    disabled={loading}
+                  />
                 </FormGroup>
               </FormRow>
               <Button
-                onClick={() => showToast(t("settings.toast.saved"), "success")}
+                onClick={saveAccount}
+                disabled={loading || savingAccount}
               >
-                <Save className="h-4 w-4" /> {t("common.save")}
+                <Save className="h-4 w-4" /> {savingAccount ? "…" : t("common.save")}
               </Button>
             </Card>
 
             <Card>
               <CardHeader icon={<Lock className="h-4 w-4" />} title={t("settings.password.section")} />
               <FormGroup label="Current password" className="mb-4">
-                <Input type="password" placeholder="••••••••" />
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
               </FormGroup>
               <FormRow>
                 <FormGroup label="New password">
-                  <Input type="password" placeholder="••••••••" />
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
                 </FormGroup>
                 <FormGroup label="Confirm password">
-                  <Input type="password" placeholder="••••••••" />
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
                 </FormGroup>
               </FormRow>
-              <Button>{t("settings.password.section")}</Button>
+              <Button
+                onClick={savePassword}
+                disabled={
+                  savingPassword ||
+                  !currentPassword ||
+                  !newPassword ||
+                  !confirmPassword
+                }
+              >
+                {savingPassword ? "…" : t("settings.password.section")}
+              </Button>
             </Card>
 
             <Card>

@@ -204,6 +204,24 @@ export type BusinessHours = {
   updated_at?: string;
 };
 
+export type SettingsSnapshot = {
+  account: AccountSettings;
+  workspace: WorkspaceSettings;
+};
+
+export type AccountSettings = {
+  name: string;
+  email: string;
+  role: string;
+};
+
+export type WorkspaceSettings = {
+  name: string;
+  timezone: string;
+  website: string;
+  business_type: string;
+};
+
 // Per-tenant bot config. The backend always returns a fully-populated object
 // — empty fields fall back to env defaults server-side. So the UI can render
 // without null-checking, and a save round-trips the same shape.
@@ -399,6 +417,33 @@ export const api = {
     update: (input: Partial<Omit<BotSettings, 'updated_at'>>) =>
       request<BotSettings>('/api/v1/bot', {
         method: 'PUT',
+        body: JSON.stringify(input),
+      }),
+  },
+
+  settings: {
+    get: () => request<SettingsSnapshot>('/api/v1/settings'),
+    updateAccount: (input: { name: string; email: string }) =>
+      request<AccountSettings>('/api/v1/settings/account', {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    updatePassword: (input: {
+      current_password: string;
+      new_password: string;
+    }) =>
+      request<void>('/api/v1/settings/password', {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    updateWorkspace: (input: {
+      name: string;
+      timezone: string;
+      website: string;
+      business_type: string;
+    }) =>
+      request<WorkspaceSettings>('/api/v1/settings/workspace', {
+        method: 'PATCH',
         body: JSON.stringify(input),
       }),
   },
