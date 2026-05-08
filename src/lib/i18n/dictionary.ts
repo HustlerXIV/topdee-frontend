@@ -242,8 +242,8 @@ export const dictionary = {
   },
   "kb.upload.drag": { th: "หรือลากไฟล์มาวางที่นี่", en: "or drag files here" },
   "kb.upload.types": {
-    th: "PDF, DOCX, XLSX, TXT · สูงสุด 20MB ต่อไฟล์",
-    en: "PDF, DOCX, XLSX, TXT · 20MB max per file",
+    th: "PDF, DOCX, XLSX, TXT · สูงสุด 10MB ต่อไฟล์",
+    en: "PDF, DOCX, XLSX, TXT · 10MB max per file",
   },
   "kb.files.section": { th: "ไฟล์ในฐานข้อมูล", en: "Files in this base" },
   "kb.files.empty": {

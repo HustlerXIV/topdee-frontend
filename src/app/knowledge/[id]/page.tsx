@@ -45,7 +45,13 @@ export default function KnowledgeDetailPage() {
       });
   }, [id]);
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
   async function uploadFile(file: File) {
+    if (file.size > MAX_FILE_SIZE) {
+      setErr(`File "${file.name}" exceeds the 10 MB limit (${(file.size / 1024 / 1024).toFixed(1)} MB).`);
+      return;
+    }
     setUploading(true);
     setErr(null);
     try {
