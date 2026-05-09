@@ -36,7 +36,7 @@ export function AppShell({
 
       <main
         className={cn(
-          "flex-1",
+          "flex-1 pt-[57px] md:pt-0",
           withPadding ? "overflow-y-auto" : "flex min-h-0 flex-col overflow-hidden",
         )}
       >
@@ -79,5 +79,5 @@ export function PageHeader({
 }
 
 export function PageBody({ children }: { children: ReactNode }) {
-  return <div className="px-6 pb-24 pt-6 md:px-8">{children}</div>;
+  return <div className="px-6 pb-8 pt-6 md:px-8">{children}</div>;
 }

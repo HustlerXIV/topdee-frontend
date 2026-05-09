@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppShell, PageBody, PageHeader } from '@/components/layout/AppShell';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { StatCard } from '@/components/ui/StatCard';
 import { useT } from '@/lib/i18n/useT';
-import { api, ApiError } from '@/lib/api';
+import { api, ApiError, type Plan } from '@/lib/api';
 import { useUI } from '@/store/ui';
 import {
   CreditCard,
@@ -21,22 +21,31 @@ import {
   ArrowRight,
 } from '@/components/ui/Icon';
 
-const PLANS = [
-  { id: 'starter', name: 'Starter', price: '฿490', desc: 'For businesses just starting' },
-  { id: 'growth', name: 'Growth', price: '฿990', desc: 'For SMBs that are scaling', popular: true },
-  { id: 'pro', name: 'Pro', price: '฿2,490', desc: 'For businesses going all-in' },
-];
-
 const INVOICES = [
   { plan: 'Growth Plan — April 2025', date: '17 Apr 2025', amount: '฿990' },
   { plan: 'Growth Plan — March 2025', date: '17 Mar 2025', amount: '฿990' },
   { plan: 'Starter Plan — February 2025', date: '17 Feb 2025', amount: '฿490' },
 ];
 
+function fmtPrice(plan: Plan) {
+  if (plan.price === 0) return 'Free';
+  return `฿${plan.price.toLocaleString()}`;
+}
+
+function expiryLabel(plan: Plan) {
+  if (plan.expiry_days === 0) return null;
+  return `${plan.expiry_days}-day trial`;
+}
+
 export default function BillingPage() {
   const t = useT();
   const showToast = useUI((s) => s.showToast);
   const [busy, setBusy] = useState<string | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+
+  useEffect(() => {
+    api.plans().then(setPlans).catch(() => {});
+  }, []);
 
   async function checkout(plan: string) {
     setBusy(plan);
@@ -115,37 +124,47 @@ export default function BillingPage() {
             description="Upgrade or downgrade — Stripe handles the proration automatically."
           />
           <div className="grid gap-4 sm:grid-cols-3">
-            {PLANS.map((p) => (
-              <div
-                key={p.id}
-                className={`rounded-2xl border-2 bg-page p-5 ${
-                  p.popular ? 'border-brand-600' : 'border-line2'
-                }`}
-              >
-                {p.popular && (
-                  <div className="-mt-1 mb-2 inline-flex items-center gap-1 rounded-full bg-brand-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white">
-                    <Star className="h-3 w-3 fill-white" /> Popular
-                  </div>
-                )}
-                <div className="text-sm font-semibold uppercase tracking-wider text-ink-muted">
-                  {p.name}
-                </div>
-                <div className="mt-1 text-3xl font-extrabold text-ink">
-                  {p.price}
-                  <span className="ml-1 text-sm font-medium text-ink-muted">/mo</span>
-                </div>
-                <p className="mt-1 text-[13px] text-ink-faint">{p.desc}</p>
-                <Button
-                  fullWidth
-                  variant={p.popular ? 'primary' : 'outline'}
-                  className="mt-4"
-                  onClick={() => checkout(p.id)}
-                  disabled={busy !== null}
+            {plans.length === 0 && (
+              <p className="col-span-3 text-sm text-ink-faint">Loading plans…</p>
+            )}
+            {plans.map((p) => {
+              const popular = p.is_recommended;
+              const trial = expiryLabel(p);
+              return (
+                <div
+                  key={p.id}
+                  className={`rounded-2xl border-2 bg-page p-5 ${
+                    popular ? 'border-brand-600' : 'border-line2'
+                  }`}
                 >
-                  {busy === p.id ? '…' : 'Choose'}
-                </Button>
-              </div>
-            ))}
+                  {popular && (
+                    <div className="-mt-1 mb-2 inline-flex items-center gap-1 rounded-full bg-brand-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white">
+                      <Star className="h-3 w-3 fill-white" /> Popular
+                    </div>
+                  )}
+                  <div className="text-sm font-semibold uppercase tracking-wider text-ink-muted">
+                    {p.display_name}
+                  </div>
+                  <div className="mt-1 text-3xl font-extrabold text-ink">
+                    {fmtPrice(p)}
+                    {p.price > 0 && <span className="ml-1 text-sm font-medium text-ink-muted">/mo</span>}
+                  </div>
+                  {trial && (
+                    <p className="mt-0.5 text-[12px] font-medium text-brand-600">{trial}</p>
+                  )}
+                  <p className="mt-1 text-[13px] text-ink-faint">{p.description}</p>
+                  <Button
+                    fullWidth
+                    variant={popular ? 'primary' : 'outline'}
+                    className="mt-4"
+                    onClick={() => checkout(p.id)}
+                    disabled={busy !== null}
+                  >
+                    {busy === p.id ? '…' : 'Choose'}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         </Card>
 

@@ -38,6 +38,7 @@ import {
   Pencil,
   Trash2,
   X,
+  Menu,
   Check,
   ChevronDown,
   Copy,
@@ -105,6 +106,7 @@ import {
   Smile,
   Zap,
   DollarSign,
+  Package,
   Link as LinkIcon,
   type LucideIcon as _LucideIconType,
 } from 'lucide-react';
@@ -137,6 +139,7 @@ export const ICONS = {
   delete: Trash2,
   trash: Trash2,
   close: X,
+  menu: Menu,
   check: Check,
   chevronDown: ChevronDown,
   copy: Copy,
@@ -253,6 +256,7 @@ export {
   Pencil,
   Trash2,
   X,
+  Menu,
   Check,
   ChevronDown,
   Copy,
@@ -314,5 +318,6 @@ export {
   Smile,
   Zap,
   DollarSign,
+  Package,
   LinkIcon,
 };

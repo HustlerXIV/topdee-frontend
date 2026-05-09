@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
@@ -12,7 +12,10 @@ import {
   BarChart3,
   Building2,
   Users,
+  Package,
   ArrowLeft,
+  Menu,
+  X,
 } from '@/components/ui/Icon';
 import { cn } from '@/lib/cn';
 
@@ -41,7 +44,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-page">
       <AdminSidebar />
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <AdminMobileNav />
+      <main className="flex-1 overflow-y-auto pt-[57px] md:pt-0">{children}</main>
       <ToastViewport />
     </div>
   );
@@ -51,7 +55,123 @@ const NAV = [
   { href: '/admin', icon: BarChart3, label: 'Overview', exact: true },
   { href: '/admin/tenants', icon: Building2, label: 'Tenants' },
   { href: '/admin/users', icon: Users, label: 'Users' },
+  { href: '/admin/plans', icon: Package, label: 'Plans' },
 ];
+
+function navIsActive(pathname: string, href: string, exact?: boolean) {
+  if (exact) return pathname === href;
+  return pathname === href || pathname.startsWith(href + '/');
+}
+
+function AdminMobileNav() {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname() ?? '';
+
+  // Lock body scroll while menu is open
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  // Close on route change
+  useEffect(() => { setOpen(false); }, [pathname]);
+
+  return (
+    <>
+      {/* ── Fixed top bar (mobile only) ─────────────────────────── */}
+      <div
+        className="fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b border-line2 bg-card px-4 md:hidden"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)', paddingBottom: '12px' }}
+      >
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-300">
+            <Shield className="h-3.5 w-3.5" />
+          </div>
+          <span className="text-base font-extrabold tracking-tight text-red-600 dark:text-red-400">
+            Admin
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Open admin menu"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-muted hover:bg-muted hover:text-ink"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* ── Full-screen overlay menu ─────────────────────────────── */}
+      {open && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-card md:hidden">
+          {/* Header */}
+          <div
+            className="flex shrink-0 items-center justify-between border-b border-line2 px-4"
+            style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)', paddingBottom: '12px' }}
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-300">
+                <Shield className="h-4 w-4" />
+              </div>
+              <span className="text-base font-extrabold tracking-tight text-red-600 dark:text-red-400">
+                Admin
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close admin menu"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-muted hover:bg-muted hover:text-ink"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Nav items */}
+          <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+            {NAV.map((it) => {
+              const Icon = it.icon;
+              const active = navIsActive(pathname, it.href, it.exact);
+              return (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    'flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium transition-colors',
+                    active
+                      ? 'bg-red-50 font-semibold text-red-600 dark:bg-red-950/30 dark:text-red-300'
+                      : 'text-ink-muted hover:bg-muted hover:text-ink',
+                  )}
+                >
+                  <Icon className="h-[18px] w-[18px] shrink-0" />
+                  {it.label}
+                </Link>
+              );
+            })}
+
+            <div className="my-2 h-px bg-line2" />
+
+            <Link
+              href="/inbox"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium text-ink-muted transition-colors hover:bg-muted hover:text-ink"
+            >
+              <ArrowLeft className="h-[18px] w-[18px]" />
+              Back to workspace
+            </Link>
+          </div>
+
+          {/* Footer */}
+          <UserMenu />
+          <div className="border-t border-line2">
+            <CompactPreferences />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 function AdminSidebar() {
   const pathname = usePathname() ?? '';
@@ -138,5 +258,5 @@ export function AdminPageHeader({
 }
 
 export function AdminPageBody({ children }: { children: ReactNode }) {
-  return <div className="px-6 pb-24 pt-6 md:px-8">{children}</div>;
+  return <div className="px-6 pb-8 pt-6 md:px-8">{children}</div>;
 }

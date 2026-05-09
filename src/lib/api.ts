@@ -147,6 +147,36 @@ export type AdminTenantFull = AdminTenant & {
   subscription?: Subscription;
 };
 
+export type PlanLimits = {
+  channels: Record<string, number>; // keyed by provider slug, -1 = unlimited
+  members: number;
+  messages_per_month: number;
+  knowledge_bases: number;
+  storage_mb: number;
+};
+
+export type Plan = {
+  id: string;
+  display_name: string;
+  description: string;
+  price: number;
+  currency: string;
+  is_active: boolean;
+  is_public: boolean;       // false = hidden/custom, only assignable by admin
+  is_recommended: boolean;  // shows "Popular" badge on pricing page
+  sort_order: number;
+  expiry_days: number; // 0 = forever
+  limits: PlanLimits;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PlanInput = Omit<Plan, 'created_at' | 'updated_at' | 'is_active' | 'is_public' | 'is_recommended'> & {
+  is_active: boolean;
+  is_public: boolean;
+  is_recommended: boolean;
+};
+
 export type AdminMetrics = {
   tenants: {
     total: number;
@@ -269,6 +299,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export const api = {
   health: () => request<{ status: string }>('/health'),
 
+  // Public — no auth required. Used by homepage and billing page.
+  plans: () => request<Plan[]>('/api/v1/plans'),
+
   register: (tenant_name: string, email: string, password: string) =>
     request<{ token: string; user: AuthUser }>('/api/v1/auth/register', {
       method: 'POST',
@@ -390,6 +423,19 @@ export const api = {
       }),
     deleteUser: (id: string) =>
       request<void>(`/api/v1/admin/users/${id}`, { method: 'DELETE' }),
+    plans: () => request<Plan[]>('/api/v1/admin/plans'),
+    createPlan: (body: PlanInput) =>
+      request<Plan>('/api/v1/admin/plans', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    updatePlan: (id: string, body: PlanInput) =>
+      request<Plan>(`/api/v1/admin/plans/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+    deletePlan: (id: string) =>
+      request<void>(`/api/v1/admin/plans/${id}`, { method: 'DELETE' }),
   },
 
   acceptInvite: (input: { token: string; name: string; password: string }) =>
