@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { api, ApiError, type Plan, type PlanInput, type PlanLimits } from '@/lib/api';
 import { useUI } from '@/store/ui';
-import { Package, Plus, Pencil, Trash2 } from '@/components/ui/Icon';
+import { Package, Plus, Pencil, Trash2, Info } from '@/components/ui/Icon';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -51,6 +51,10 @@ function emptyPlan(): PlanInput {
     is_recommended: false,
     sort_order: 0,
     expiry_days: 0,
+    stripe_price_id: '',
+    stripe_price_id_yearly: '',
+    yearly_price: 0,
+    yearly_saving_label: '',
     limits: emptyLimits(),
   };
 }
@@ -177,6 +181,82 @@ function PlanModal({
               />
             </div>
 
+            {/* Stripe integration */}
+            <div className="rounded-xl border border-line2 p-4 space-y-3">
+              <p className="text-[13px] font-semibold text-ink">
+                Stripe Price IDs{' '}
+                <a
+                  href="https://dashboard.stripe.com/products"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ml-1 text-[12px] font-normal text-brand-600 underline"
+                >
+                  Open Stripe Dashboard →
+                </a>
+              </p>
+              {/* Price IDs */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-[13px] font-medium text-ink">
+                    Monthly price ID
+                  </label>
+                  <Input
+                    value={form.stripe_price_id ?? ''}
+                    onChange={(e) => setForm((f) => ({ ...f, stripe_price_id: e.target.value }))}
+                    placeholder="price_monthly…"
+                    className="font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[13px] font-medium text-ink">
+                    Yearly price ID
+                  </label>
+                  <Input
+                    value={form.stripe_price_id_yearly ?? ''}
+                    onChange={(e) => setForm((f) => ({ ...f, stripe_price_id_yearly: e.target.value }))}
+                    placeholder="price_yearly… (optional)"
+                    className="font-mono text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Yearly display pricing */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-[13px] font-medium text-ink">
+                    Yearly display price
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.yearly_price ?? 0}
+                    onChange={(e) => setForm((f) => ({ ...f, yearly_price: parseFloat(e.target.value) || 0 }))}
+                    placeholder="e.g. 9900"
+                  />
+                  <p className="mt-1 text-[11px] text-ink-faint">
+                    Total charged per year (e.g. ฿9,900). Shown on the billing page.
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[13px] font-medium text-ink">
+                    Savings badge label
+                  </label>
+                  <Input
+                    value={form.yearly_saving_label ?? ''}
+                    onChange={(e) => setForm((f) => ({ ...f, yearly_saving_label: e.target.value }))}
+                    placeholder="e.g. 2 months free, Save 17%"
+                  />
+                  <p className="mt-1 text-[11px] text-ink-faint">
+                    Badge shown next to the yearly price. Leave empty to hide.
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-ink-faint">
+                Leave yearly fields empty to offer monthly billing only. Free plans don't need any.
+              </p>
+            </div>
+
             {/* Pricing */}
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-2">
@@ -269,36 +349,35 @@ function PlanModal({
 
             {/* Channel limits */}
             <div>
-              <p className="mb-2 text-[13px] font-medium text-ink">
-                Channel limits <span className="font-normal text-ink-faint">(-1 = unlimited)</span>
-              </p>
+              <p className="mb-2 text-[13px] font-medium text-ink">Channel limits</p>
               <div className="rounded-lg border border-line2 divide-y divide-line2">
-                {KNOWN_PROVIDERS.map((provider) => (
-                  <div key={provider} className="flex items-center gap-3 px-4 py-2">
-                    <span className="w-28 text-sm capitalize text-ink">{provider}</span>
-                    <Input
-                      type="number"
-                      min={-1}
-                      value={form.limits.channels[provider] ?? 0}
-                      onChange={(e) => setChannelLimit(provider, e.target.value)}
-                      className="w-24"
-                    />
-                    <span className="text-xs text-ink-faint">channels</span>
-                  </div>
-                ))}
-                {extraProviders.map((provider) => (
-                  <div key={provider} className="flex items-center gap-3 px-4 py-2">
-                    <span className="w-28 text-sm capitalize text-ink">{provider}</span>
-                    <Input
-                      type="number"
-                      min={-1}
-                      value={form.limits.channels[provider] ?? 0}
-                      onChange={(e) => setChannelLimit(provider, e.target.value)}
-                      className="w-24"
-                    />
-                    <span className="text-xs text-ink-faint">channels</span>
-                  </div>
-                ))}
+                {[...KNOWN_PROVIDERS, ...extraProviders].map((provider) => {
+                  const val = form.limits.channels[provider] ?? 0;
+                  const isUnlimited = val === -1;
+                  return (
+                    <div key={provider} className="flex items-center gap-3 px-4 py-2">
+                      <span className="w-28 text-sm capitalize text-ink">{provider}</span>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={isUnlimited ? '' : val}
+                        placeholder={isUnlimited ? '∞' : '0'}
+                        disabled={isUnlimited}
+                        onChange={(e) => setChannelLimit(provider, e.target.value)}
+                        className={`w-20 ${isUnlimited ? 'opacity-40' : ''}`}
+                      />
+                      <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-muted">
+                        <input
+                          type="checkbox"
+                          checked={isUnlimited}
+                          onChange={(e) => setChannelLimit(provider, e.target.checked ? '-1' : '0')}
+                          className="h-3.5 w-3.5 rounded border-line2"
+                        />
+                        Unlimited
+                      </label>
+                    </div>
+                  );
+                })}
                 {/* Add new provider row */}
                 <div className="flex items-center gap-3 px-4 py-2">
                   <Input
@@ -317,28 +396,45 @@ function PlanModal({
 
             {/* Usage limits */}
             <div>
-              <p className="mb-2 text-[13px] font-medium text-ink">
-                Usage limits <span className="font-normal text-ink-faint">(-1 = unlimited)</span>
-              </p>
+              <p className="mb-2 text-[13px] font-medium text-ink">Usage limits</p>
               <div className="grid grid-cols-2 gap-4">
                 {(
                   [
                     { key: 'members', label: 'Team members' },
-                    { key: 'messages_per_month', label: 'Messages / month' },
+                    { key: 'messages_per_month', label: 'AI messages / month' },
                     { key: 'knowledge_bases', label: 'Knowledge bases' },
                     { key: 'storage_mb', label: 'Storage (MB)' },
                   ] as { key: keyof Omit<PlanLimits, 'channels'>; label: string }[]
-                ).map(({ key, label }) => (
-                  <div key={key}>
-                    <label className="mb-1 block text-[13px] text-ink-faint">{label}</label>
-                    <Input
-                      type="number"
-                      min={-1}
-                      value={form.limits[key]}
-                      onChange={(e) => setLimit(key, e.target.value)}
-                    />
-                  </div>
-                ))}
+                ).map(({ key, label }) => {
+                  const isUnlimited = form.limits[key] === -1;
+                  return (
+                    <div key={key}>
+                      <div className="mb-1 flex items-center justify-between">
+                        <label className="text-[13px] text-ink-faint">{label}</label>
+                        <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-muted">
+                          <input
+                            type="checkbox"
+                            checked={isUnlimited}
+                            onChange={(e) =>
+                              setLimit(key, e.target.checked ? '-1' : '0')
+                            }
+                            className="h-3.5 w-3.5 rounded border-line2"
+                          />
+                          Unlimited
+                        </label>
+                      </div>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={isUnlimited ? '' : form.limits[key]}
+                        placeholder={isUnlimited ? '∞ Unlimited' : '0'}
+                        disabled={isUnlimited}
+                        onChange={(e) => setLimit(key, e.target.value)}
+                        className={isUnlimited ? 'opacity-40' : ''}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -395,6 +491,24 @@ function PlanCard({
           <p className="mt-1 text-sm font-medium text-brand-600">
             {fmtPrice(plan.price, plan.currency)}
           </p>
+          {plan.price > 0 && (
+            <div className="mt-0.5 space-y-0.5">
+              {plan.stripe_price_id ? (
+                <p className="font-mono text-[11px] text-ink-faint">
+                  Monthly: {plan.stripe_price_id}
+                </p>
+              ) : (
+                <p className="text-[11px] text-amber-500">⚠ No monthly price ID</p>
+              )}
+              {plan.stripe_price_id_yearly ? (
+                <p className="font-mono text-[11px] text-ink-faint">
+                  Yearly: {plan.stripe_price_id_yearly}
+                </p>
+              ) : (
+                <p className="text-[11px] text-ink-faint">No yearly price (monthly only)</p>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex shrink-0 gap-2">
           <Button variant="ghost" size="sm" onClick={onEdit}>
@@ -494,6 +608,41 @@ export default function AdminPlansPage() {
         }
       />
       <AdminPageBody>
+        {/* ── Stripe setup guide ────────────────────────────────────── */}
+        <div className="mb-6 flex gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="space-y-1.5">
+            <p className="font-semibold">How to connect a plan to Stripe</p>
+            <ol className="list-decimal space-y-1 pl-4 text-[13px] leading-relaxed">
+              <li>
+                Open{' '}
+                <a
+                  href="https://dashboard.stripe.com/products"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium underline underline-offset-2"
+                >
+                  Stripe Dashboard → Products
+                </a>{' '}
+                and create a product with a recurring price for each paid plan.
+              </li>
+              <li>
+                Click a price to open it, then copy its <strong>Price ID</strong> — it starts with{' '}
+                <code className="rounded bg-blue-100 px-1 py-0.5 font-mono text-[12px] dark:bg-blue-900/40">
+                  price_
+                </code>.
+              </li>
+              <li>
+                Edit the matching plan below, paste the Price ID into the{' '}
+                <strong>Stripe Price ID</strong> field, and save.
+              </li>
+            </ol>
+            <p className="text-[12px] text-blue-600 dark:text-blue-400">
+              Free plans don't need a Price ID. Paid plans without one will show an error when a tenant tries to check out.
+            </p>
+          </div>
+        </div>
+
         {err && <p className="mb-4 text-sm text-red-500">{err}</p>}
         {!plans && !err && <p className="text-sm text-ink-faint">Loading…</p>}
 

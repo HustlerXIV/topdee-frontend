@@ -166,6 +166,14 @@ export type Plan = {
   is_recommended: boolean;  // shows "Popular" badge on pricing page
   sort_order: number;
   expiry_days: number; // 0 = forever
+  /** Monthly Stripe Price ID (price_xxx). Set in Admin → Plans. */
+  stripe_price_id?: string;
+  /** Yearly Stripe Price ID — leave empty if no annual billing option. */
+  stripe_price_id_yearly?: string;
+  /** Display price charged per year, e.g. 9900 for ฿9,900/yr. */
+  yearly_price?: number;
+  /** Badge shown next to the yearly option, e.g. "2 months free", "Save 17%". */
+  yearly_saving_label?: string;
   limits: PlanLimits;
   created_at: string;
   updated_at: string;
@@ -175,6 +183,7 @@ export type PlanInput = Omit<Plan, 'created_at' | 'updated_at' | 'is_active' | '
   is_active: boolean;
   is_public: boolean;
   is_recommended: boolean;
+  stripe_price_id?: string;
 };
 
 export type AdminMetrics = {
@@ -206,6 +215,31 @@ export type TeamInvite = {
 export type CreateInviteResp = {
   invite: TeamInvite;
   accept_url: string;
+};
+
+// ── Billing / payment methods ────────────────────────────────────────
+export type PaymentMethod = {
+  id: string;
+  brand: string;   // "visa" | "mastercard" | "amex" | …
+  last4: string;
+  exp_month: number; // 1–12
+  exp_year: number;  // e.g. 2027
+  is_default: boolean;
+};
+
+// ── Billing / self-service ───────────────────────────────────────────
+export type BillingUsage = {
+  members: number;
+  channels: number;
+  messages_this_month: number;
+};
+
+export type BillingInfo = {
+  plan: Plan;
+  subscription?: Subscription;
+  has_subscription: boolean;
+  has_stripe_customer: boolean;
+  usage: BillingUsage;
 };
 
 // One row in the playground "past tests" picker.
@@ -445,17 +479,32 @@ export const api = {
     }),
 
   billing: {
+    /** Current plan, subscription status, and live usage stats. */
+    info: () => request<BillingInfo>('/api/v1/billing'),
     /** Returns { url } — frontend should redirect the user to Stripe Checkout. */
-    checkout: (plan: string) =>
+    checkout: (plan: string, interval: 'month' | 'year' = 'month') =>
       request<{ url: string }>('/api/v1/billing/checkout-session', {
         method: 'POST',
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, interval }),
       }),
     /** Returns { url } — Stripe Customer Portal for self-service. */
     portal: () =>
       request<{ url: string }>('/api/v1/billing/portal-session', {
         method: 'POST',
       }),
+    /** List saved payment methods (cards) for this tenant's Stripe customer. */
+    paymentMethods: () =>
+      request<{ payment_methods: PaymentMethod[] }>('/api/v1/billing/payment-methods'),
+    /** Detach (remove) a saved card by its Stripe payment method id. */
+    removePaymentMethod: (id: string) =>
+      request<void>(`/api/v1/billing/payment-methods/${id}`, { method: 'DELETE' }),
+    /**
+     * Schedule the subscription to cancel at the end of the current period.
+     * The tenant keeps full access until then, then drops to Free automatically.
+     */
+    cancel: () => request<void>('/api/v1/billing/cancel', { method: 'POST' }),
+    /** Remove the scheduled cancellation so the subscription renews normally. */
+    reactivate: () => request<void>('/api/v1/billing/reactivate', { method: 'POST' }),
   },
 
   bot: {

@@ -320,8 +320,8 @@ export const dictionary = {
   },
   "billing.usage.label": { th: "ข้อความที่ใช้ไป", en: "Messages used" },
   "billing.usage.remaining": {
-    th: "เหลืออีก 3,759 ข้อความ ใช้ไป 62%",
-    en: "3,759 left · 62% used",
+    th: "เหลือ",
+    en: "remaining",
   },
   "billing.upgrade": { th: "อัปเกรดเป็น Pro →", en: "Upgrade to Pro →" },
   "billing.method.section": { th: "วิธีชำระเงิน", en: "Payment method" },
