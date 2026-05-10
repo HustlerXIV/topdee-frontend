@@ -227,6 +227,19 @@ export type PaymentMethod = {
   is_default: boolean;
 };
 
+export type Invoice = {
+  id: string;
+  number: string;
+  amount_paid: number;   // in smallest unit (satang / cents)
+  currency: string;      // "thb" | "usd" …
+  status: string;        // "paid" | "open" | "void" | "uncollectible"
+  period_start: string;  // "2025-01-01"
+  period_end: string;    // "2025-02-01"
+  invoice_url: string;   // hosted Stripe invoice page
+  pdf_url: string;
+  created_at: string;    // "2025-01-01"
+};
+
 // ── Billing / self-service ───────────────────────────────────────────
 export type BillingUsage = {
   members: number;
@@ -472,6 +485,17 @@ export const api = {
       request<void>(`/api/v1/admin/plans/${id}`, { method: 'DELETE' }),
   },
 
+  inviteInfo: (token: string) =>
+    request<{ email: string; workspace_name: string; inviter_email: string; expires_at: string }>(
+      `/api/v1/auth/invite-info?token=${encodeURIComponent(token)}`
+    ),
+
+  syncCheckoutSession: (sessionId: string) =>
+    request('/api/v1/billing/sync-session', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sessionId }),
+    }),
+
   acceptInvite: (input: { token: string; name: string; password: string }) =>
     request<{ token: string; user: Member }>('/api/v1/auth/accept-invite', {
       method: 'POST',
@@ -505,6 +529,9 @@ export const api = {
     cancel: () => request<void>('/api/v1/billing/cancel', { method: 'POST' }),
     /** Remove the scheduled cancellation so the subscription renews normally. */
     reactivate: () => request<void>('/api/v1/billing/reactivate', { method: 'POST' }),
+    /** Fetch last 24 invoices from Stripe. */
+    invoices: () =>
+      request<{ invoices: Invoice[] }>('/api/v1/billing/invoices'),
   },
 
   bot: {
@@ -623,6 +650,8 @@ export const api = {
         `/api/v1/inbox/conversations/${encodeURIComponent(id)}/messages`,
         { method: 'POST', body: JSON.stringify({ text }) },
       ),
+    /** Number of conversations where the customer spoke last (needs reply). */
+    unreadCount: () => request<{ count: number }>('/api/v1/inbox/unread-count'),
   },
 
   playground: {

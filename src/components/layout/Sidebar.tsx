@@ -9,16 +9,16 @@ import { CompactPreferences } from '@/components/PreferencesToggle';
 import { UserMenu } from './UserMenu';
 import { Icon, type IconName, Shield } from '@/components/ui/Icon';
 import { useAuth } from '@/store/auth';
+import { useInboxBadge } from '@/store/inbox-badge';
 
 type Item = {
   href: string;
   icon: IconName;
   labelKey: DictKey;
-  badge?: string;
 };
 
 const primary: Item[] = [
-  { href: '/inbox', icon: 'inbox', labelKey: 'nav.inbox', badge: '12' },
+  { href: '/inbox', icon: 'inbox', labelKey: 'nav.inbox' },
   { href: '/bot', icon: 'bot', labelKey: 'nav.bot' },
   { href: '/knowledge', icon: 'knowledge', labelKey: 'nav.knowledge' },
   { href: '/analytics', icon: 'analytics', labelKey: 'nav.analytics' },
@@ -35,6 +35,7 @@ export function Sidebar() {
   const pathname = usePathname() ?? '';
   const t = useT();
   const isAdmin = useAuth((s) => s.user?.isAdmin);
+  const unreadCount = useInboxBadge((s) => s.count);
 
   return (
     <aside className="hidden h-screen w-[220px] flex-col border-r border-line2 bg-card md:flex">
@@ -52,6 +53,7 @@ export function Sidebar() {
             item={it}
             label={t(it.labelKey)}
             active={isActive(pathname, it.href)}
+            badge={it.href === '/inbox' && unreadCount > 0 ? String(unreadCount) : undefined}
           />
         ))}
 
@@ -91,10 +93,12 @@ function SidebarItem({
   item,
   label,
   active,
+  badge,
 }: {
   item: Item;
   label: string;
   active: boolean;
+  badge?: string;
 }) {
   return (
     <Link
@@ -108,9 +112,9 @@ function SidebarItem({
     >
       <Icon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
       <span>{label}</span>
-      {item.badge && (
+      {badge && (
         <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[11px] font-bold text-white">
-          {item.badge}
+          {Number(badge) > 99 ? '99+' : badge}
         </span>
       )}
     </Link>

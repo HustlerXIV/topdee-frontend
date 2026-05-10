@@ -333,7 +333,15 @@ export const dictionary = {
   },
   "billing.invoice.section": {
     th: "ประวัติการชำระเงิน",
-    en: "Invoice history",
+    en: "Payment history",
+  },
+  "billing.invoice.desc": {
+    th: "ใบแจ้งหนี้ล่าสุดจาก Stripe",
+    en: "Recent invoices from Stripe.",
+  },
+  "billing.invoice.empty": {
+    th: "ยังไม่มีใบแจ้งหนี้",
+    en: "No invoices yet.",
   },
   "billing.invoice.paid": { th: "ชำระแล้ว", en: "Paid" },
   "billing.cancel.warn": {
@@ -341,6 +349,66 @@ export const dictionary = {
     en: "Cancel subscription: you keep access until the end of the billing cycle (May 17), then switch to the Free plan.",
   },
   "billing.cancel.btn": { th: "ยกเลิก plan", en: "Cancel plan" },
+
+  // Payment methods section
+  "billing.method.title": { th: "วิธีชำระเงิน", en: "Payment methods" },
+  "billing.method.desc": { th: "บัตรที่บันทึกไว้สำหรับการเรียกเก็บเงินรายเดือน", en: "Cards saved to your account for recurring billing." },
+  "billing.method.loading": { th: "กำลังโหลด…", en: "Loading…" },
+  "billing.method.empty": { th: "ยังไม่มีบัตร สมัครแผนเพื่อเพิ่มบัตร", en: "No cards saved yet. Subscribe to a plan to add one." },
+  "billing.method.default": { th: "ค่าเริ่มต้น", en: "Default" },
+  "billing.method.remove": { th: "ลบบัตร", en: "Remove card" },
+  "billing.method.removeConfirm": { th: "ต้องการลบบัตรนี้ออกจากบัญชีหรือไม่?", en: "Remove this card from your account?" },
+  "billing.method.addChange": { th: "+ เพิ่ม / เปลี่ยนบัตร", en: "+ Add / change card" },
+
+  // Cancel / reactivate section
+  "billing.cancel.title": { th: "ยกเลิก subscription", en: "Cancel subscription" },
+  "billing.cancel.desc": { th: "หากยกเลิก คุณยังใช้แผน {plan} ได้ถึง {date} ซึ่งเป็นสิ้นรอบบิลปัจจุบัน หลังจากนั้นจะเปลี่ยนเป็น Free plan โดยอัตโนมัติ ไม่มีการเรียกเก็บเงินอีก", en: "If you cancel, you keep full access to {plan} until {date} — the end of your current billing period. After that, your account moves to the Free plan automatically. You won't be charged again." },
+  "billing.cancel.canceling": { th: "กำลังยกเลิก…", en: "Canceling…" },
+  "billing.cancel.scheduled": { th: "Subscription จะสิ้นสุดวันที่ {date}", en: "Subscription cancels on {date}" },
+  "billing.cancel.scheduledDesc": { th: "คุณยังใช้แผน {plan} ได้ถึง {date} หลังจากนั้นจะเปลี่ยนเป็น Free plan โดยอัตโนมัติ ไม่มีการเรียกเก็บเงินอีก", en: "You keep full access to {plan} until {date}. On that date your account moves to the Free plan automatically — no further charges." },
+  "billing.cancel.undo": { th: "ยกเลิกการยกเลิก", en: "Undo cancellation" },
+
+  // Past-due warning
+  "billing.pastDue.msg": { th: "การชำระเงินครั้งล่าสุดล้มเหลว อัปเดตวิธีชำระเงินเพื่อรักษาการเข้าถึง", en: "Your last payment failed. Update your payment method to avoid losing access." },
+  "billing.pastDue.fix": { th: "แก้ไขการชำระเงิน", en: "Fix payment" },
+
+  // Plan grid
+  "billing.plans.title": { th: "เปลี่ยนแผน", en: "Change plan" },
+  "billing.plans.desc": { th: "อัปเกรดหรือดาวน์เกรด — Stripe จัดการส่วนต่างโดยอัตโนมัติ", en: "Upgrade or downgrade — Stripe handles proration automatically." },
+  "billing.plans.monthly": { th: "รายเดือน", en: "Monthly" },
+  "billing.plans.yearly": { th: "รายปี", en: "Yearly" },
+  "billing.plans.saveMore": { th: "ประหยัดกว่า", en: "Save more" },
+  "billing.plans.loading": { th: "กำลังโหลดแผน…", en: "Loading plans…" },
+  "billing.plans.empty": { th: "ไม่มีแผนที่ใช้งานได้", en: "No plans available." },
+  "billing.plans.noYearly": { th: "ไม่มีตัวเลือกรายปี", en: "No yearly option" },
+  "billing.plans.noMonthly": { th: "ไม่มีตัวเลือกรายเดือน", en: "No monthly option" },
+  "billing.plans.current": { th: "แผนปัจจุบัน", en: "Current" },
+  "billing.plans.choose": { th: "เลือก", en: "Choose" },
+  "billing.plans.free": { th: "แผนฟรี", en: "Free tier" },
+  "billing.plans.unavailable": { th: "ไม่พร้อมใช้งาน", en: "Not available" },
+  "billing.plans.popular": { th: "ยอดนิยม", en: "Popular" },
+  "billing.plans.billedAnnually": { th: "เรียกเก็บรายปี", en: "billed annually" },
+
+  // Expired callout
+  "billing.expired.msg": { th: "Subscription ของคุณสิ้นสุดเมื่อวันที่ {date} และได้เปลี่ยนเป็น Free plan แล้ว เลือกแผนด้านบนเพื่อสมัครใหม่", en: "Your subscription ended on {date} and you have been moved to the Free plan. Choose a plan above to resubscribe." },
+
+  // Stats
+  "billing.stat.channels": { th: "ช่องทาง", en: "Channels" },
+  "billing.stat.members": { th: "สมาชิก", en: "Members" },
+  "billing.stat.aiMessages": { th: "AI messages", en: "AI messages" },
+  "billing.stat.unlimited": { th: "ไม่จำกัด", en: "Unlimited" },
+  "billing.stat.thisMonth": { th: "เดือนนี้", en: "this month" },
+  "billing.stat.slotsLeft": { th: "ช่องว่างเหลือ {n}", en: "{n} slot(s) left" },
+  "billing.stat.left": { th: "เหลือ {n}", en: "{n} left" },
+
+  // Manage subscription button
+  "billing.manage": { th: "จัดการ subscription", en: "Manage subscription" },
+
+  // Current plan banner dynamic strings
+  "billing.currentPlan.cancels": { th: "ยกเลิกวันที่ {date}", en: "Cancels on {date}" },
+  "billing.currentPlan.renews": { th: "ต่ออายุวันที่ {date}", en: "Renews on {date}" },
+  "billing.currentPlan.trial": { th: "ทดลองใช้สิ้นสุดวันที่ {date}", en: "Trial ends {date}" },
+  "billing.price.free": { th: "ฟรี", en: "Free" },
 
   // ── Team ──────────────────────────────────────────────
   "team.title": { th: "👥 Team Members", en: "👥 Team Members" },

@@ -104,8 +104,22 @@ function PlanModal({
     setNewProvider('');
   }
 
+  function priceIdError(id: string | undefined): string | null {
+    if (!id || id.trim() === '') return null;
+    if (!id.startsWith('price_'))
+      return `Must start with "price_" — looks like you pasted a ${id.startsWith('prod_') ? 'Product' : id.startsWith('acct_') ? 'Account' : 'wrong'} ID instead.`;
+    return null;
+  }
+
+  const monthlyErr = priceIdError(form.stripe_price_id);
+  const yearlyErr  = priceIdError(form.stripe_price_id_yearly);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (monthlyErr || yearlyErr) {
+      setErr('Fix the Stripe Price ID errors before saving.');
+      return;
+    }
     setSaving(true);
     setErr(null);
     try {
@@ -203,9 +217,12 @@ function PlanModal({
                   <Input
                     value={form.stripe_price_id ?? ''}
                     onChange={(e) => setForm((f) => ({ ...f, stripe_price_id: e.target.value }))}
-                    placeholder="price_monthly…"
-                    className="font-mono text-sm"
+                    placeholder="price_1AbcDef…"
+                    className={`font-mono text-sm ${monthlyErr ? 'border-red-400 focus:ring-red-400' : ''}`}
                   />
+                  {monthlyErr && (
+                    <p className="mt-1 text-[11px] text-red-500">⚠ {monthlyErr}</p>
+                  )}
                 </div>
                 <div>
                   <label className="mb-1 block text-[13px] font-medium text-ink">
@@ -214,9 +231,12 @@ function PlanModal({
                   <Input
                     value={form.stripe_price_id_yearly ?? ''}
                     onChange={(e) => setForm((f) => ({ ...f, stripe_price_id_yearly: e.target.value }))}
-                    placeholder="price_yearly… (optional)"
-                    className="font-mono text-sm"
+                    placeholder="price_1AbcYearly… (optional)"
+                    className={`font-mono text-sm ${yearlyErr ? 'border-red-400 focus:ring-red-400' : ''}`}
                   />
+                  {yearlyErr && (
+                    <p className="mt-1 text-[11px] text-red-500">⚠ {yearlyErr}</p>
+                  )}
                 </div>
               </div>
 
@@ -494,16 +514,28 @@ function PlanCard({
           {plan.price > 0 && (
             <div className="mt-0.5 space-y-0.5">
               {plan.stripe_price_id ? (
-                <p className="font-mono text-[11px] text-ink-faint">
-                  Monthly: {plan.stripe_price_id}
-                </p>
+                plan.stripe_price_id.startsWith('price_') ? (
+                  <p className="font-mono text-[11px] text-ink-faint">
+                    Monthly: {plan.stripe_price_id}
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-red-500">
+                    ⚠ Monthly ID looks wrong ({plan.stripe_price_id}) — must start with <code>price_</code>
+                  </p>
+                )
               ) : (
                 <p className="text-[11px] text-amber-500">⚠ No monthly price ID</p>
               )}
               {plan.stripe_price_id_yearly ? (
-                <p className="font-mono text-[11px] text-ink-faint">
-                  Yearly: {plan.stripe_price_id_yearly}
-                </p>
+                plan.stripe_price_id_yearly.startsWith('price_') ? (
+                  <p className="font-mono text-[11px] text-ink-faint">
+                    Yearly: {plan.stripe_price_id_yearly}
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-red-500">
+                    ⚠ Yearly ID looks wrong ({plan.stripe_price_id_yearly}) — must start with <code>price_</code>
+                  </p>
+                )
               ) : (
                 <p className="text-[11px] text-ink-faint">No yearly price (monthly only)</p>
               )}

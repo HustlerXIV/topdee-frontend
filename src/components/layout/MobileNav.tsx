@@ -10,9 +10,10 @@ import { Icon, type IconName, Shield, Menu, X } from '@/components/ui/Icon';
 import { UserMenu } from './UserMenu';
 import { CompactPreferences } from '@/components/PreferencesToggle';
 import { useAuth } from '@/store/auth';
+import { useInboxBadge } from '@/store/inbox-badge';
 
-const primary: { href: string; icon: IconName; labelKey: DictKey; badge?: string }[] = [
-  { href: '/inbox', icon: 'inbox', labelKey: 'nav.inbox', badge: '12' },
+const primary: { href: string; icon: IconName; labelKey: DictKey }[] = [
+  { href: '/inbox', icon: 'inbox', labelKey: 'nav.inbox' },
   { href: '/bot', icon: 'bot', labelKey: 'nav.bot' },
   { href: '/knowledge', icon: 'knowledge', labelKey: 'nav.knowledge' },
   { href: '/analytics', icon: 'analytics', labelKey: 'nav.analytics' },
@@ -35,6 +36,7 @@ export function MobileNav() {
   const pathname = usePathname() ?? '';
   const t = useT();
   const isAdmin = useAuth((s) => s.user?.isAdmin);
+  const unreadCount = useInboxBadge((s) => s.count);
 
   // Lock body scroll while menu is open
   useEffect(() => {
@@ -106,9 +108,9 @@ export function MobileNav() {
               >
                 <Icon name={it.icon} className="h-[18px] w-[18px] shrink-0" />
                 <span>{t(it.labelKey)}</span>
-                {it.badge && (
+                {it.href === '/inbox' && unreadCount > 0 && (
                   <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[11px] font-bold text-white">
-                    {it.badge}
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </Link>
