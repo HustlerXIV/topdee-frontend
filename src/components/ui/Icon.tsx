@@ -59,6 +59,7 @@ import {
   CircleDot,
   // ── People & objects ──────────────────────────
   User,
+  UserCheck,
   Mail,
   Phone,
   Calendar,
@@ -108,6 +109,7 @@ import {
   DollarSign,
   Package,
   Link as LinkIcon,
+  QrCode,
   type LucideIcon as _LucideIconType,
 } from 'lucide-react';
 
@@ -163,6 +165,7 @@ export const ICONS = {
 
   // People & misc
   user: User,
+  userCheck: UserCheck,
   email: Mail,
   envelope: Mail,
   phone: Phone,
@@ -220,6 +223,7 @@ export const ICONS = {
   zap: Zap,
   money: DollarSign,
   link: LinkIcon,
+  qr: QrCode,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;
@@ -275,6 +279,7 @@ export {
   Hourglass,
   CircleDot,
   User,
+  UserCheck,
   Mail,
   Phone,
   Calendar,
@@ -320,4 +325,5 @@ export {
   DollarSign,
   Package,
   LinkIcon,
+  QrCode,
 };

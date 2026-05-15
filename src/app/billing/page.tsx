@@ -26,7 +26,9 @@ import {
   AlertTriangle,
   ArrowRight,
   Trash2,
+  QrCode,
 } from "@/components/ui/Icon";
+import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
 
 // ── helpers ──────────────────────────────────────────────────────────
 
@@ -180,10 +182,16 @@ export default function BillingPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [interval, setInterval] = useState<Interval>("month");
   const [busy, setBusy] = useState<string | null>(null);
+  const [busyPP, setBusyPP] = useState<string | null>(null); // PromptPay checkout loading
   const [removingCard, setRemovingCard] = useState<string | null>(null);
   const [canceling, setCanceling] = useState(false);
   const [reactivating, setReactivating] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Dialog state
+  const [paymentDialog, setPaymentDialog] = useState<Plan | null>(null);
+  const [cancelDialog, setCancelDialog] = useState(false);
+  const [removeCardDialog, setRemoveCardDialog] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -242,6 +250,19 @@ export default function BillingPage() {
     }
   }
 
+  async function promptPayCheckout(planId: string) {
+    setBusyPP(planId);
+    try {
+      const p = plans.find((x) => x.id === planId);
+      const eff = p ? effectiveInterval(p, interval) : interval;
+      const { url } = await api.billing.promptPayCheckout(planId, eff);
+      window.location.href = url;
+    } catch (e) {
+      showToast(e instanceof ApiError ? e.message : "PromptPay checkout failed", "error");
+      setBusyPP(null);
+    }
+  }
+
   async function openPortal() {
     setBusy("portal");
     try {
@@ -254,24 +275,13 @@ export default function BillingPage() {
   }
 
   async function cancelPlan() {
-    if (
-      !confirm(
-        `Your plan will stay active until the end of the current billing period (${fmtDate(sub?.current_period_end)}). After that, you'll be moved to the Free plan automatically. Continue?`,
-      )
-    )
-      return;
     setCanceling(true);
+    setCancelDialog(false);
     try {
       await api.billing.cancel();
       setInfo((prev) =>
         prev && prev.subscription
-          ? {
-              ...prev,
-              subscription: {
-                ...prev.subscription,
-                cancel_at_period_end: true,
-              },
-            }
+          ? { ...prev, subscription: { ...prev.subscription, cancel_at_period_end: true } }
           : prev,
       );
       showToast(
@@ -315,7 +325,7 @@ export default function BillingPage() {
   }
 
   async function removeCard(id: string) {
-    if (!confirm(t("billing.method.removeConfirm"))) return;
+    setRemoveCardDialog(null);
     setRemovingCard(id);
     try {
       await api.billing.removePaymentMethod(id);
@@ -681,17 +691,15 @@ export default function BillingPage() {
                     }
                     className="mt-4"
                     onClick={() => {
-                      if (!isCurrent && p.price > 0) checkout(p.id);
+                      if (!isCurrent && p.price > 0) setPaymentDialog(p);
                     }}
-                    disabled={busy !== null || isCurrent || p.price === 0}
+                    disabled={busy !== null || busyPP !== null || isCurrent || p.price === 0}
                   >
-                    {busy === p.id
-                      ? "…"
-                      : isCurrent
-                        ? t("billing.plans.current")
-                        : p.price === 0
-                          ? t("billing.plans.free")
-                          : t("billing.plans.choose")}
+                    {isCurrent
+                      ? t("billing.plans.current")
+                      : p.price === 0
+                        ? t("billing.plans.free")
+                        : t("billing.plans.choose")}
                   </Button>
                 </div>
               );
@@ -751,7 +759,7 @@ export default function BillingPage() {
                     variant="ghost"
                     size="sm"
                     className="text-red-500 hover:text-red-600"
-                    onClick={() => removeCard(card.id)}
+                    onClick={() => setRemoveCardDialog(card.id)}
                     disabled={removingCard === card.id}
                   >
                     {removingCard === card.id ? (
@@ -813,12 +821,10 @@ export default function BillingPage() {
                 {invoices.map((inv) => {
                   const amount = (inv.amount_paid / 100).toLocaleString(
                     undefined,
-                    {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    },
+                    { minimumFractionDigits: 2, maximumFractionDigits: 2 },
                   );
                   const currency = inv.currency.toUpperCase();
+                  const isPromptPay = inv.source === "promptpay";
                   const statusTone =
                     inv.status === "paid"
                       ? "success"
@@ -830,32 +836,42 @@ export default function BillingPage() {
                       key={inv.id}
                       className="flex flex-wrap items-center gap-3 py-3 text-sm"
                     >
+                      {/* PromptPay QR icon */}
+                      {isPromptPay && (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#003F8A]/20 bg-[#003F8A]/10 text-[#003F8A] dark:border-blue-400/20 dark:bg-blue-950/30 dark:text-blue-300">
+                          <QrCode className="h-4 w-4" />
+                        </div>
+                      )}
+
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-ink">
                             {currency} {amount}
                           </span>
-                          <Badge
-                            tone={
-                              statusTone as "success" | "warning" | "neutral"
-                            }
-                          >
-                            {inv.status === "paid"
-                              ? t("billing.invoice.paid")
-                              : inv.status}
+                          <Badge tone={statusTone as "success" | "warning" | "neutral"}>
+                            {inv.status === "paid" ? t("billing.invoice.paid") : inv.status}
                           </Badge>
-                        </div>
-                        <div className="text-xs text-ink-faint">
-                          {inv.number && (
-                            <span className="mr-2">{inv.number}</span>
-                          )}
-                          {inv.period_start && inv.period_end && (
-                            <span>
-                              {inv.period_start} → {inv.period_end}
+                          {isPromptPay && (
+                            <span className="rounded-full border border-[#003F8A]/20 bg-[#003F8A]/10 px-2 py-0.5 text-[10px] font-bold text-[#003F8A] dark:border-blue-400/20 dark:bg-blue-950/30 dark:text-blue-300">
+                              PromptPay
                             </span>
                           )}
                         </div>
+                        <div className="mt-0.5 text-xs text-ink-faint">
+                          {/* Description (PromptPay) or invoice number + period (card) */}
+                          {isPromptPay && inv.description && (
+                            <span>{inv.description}</span>
+                          )}
+                          {!isPromptPay && inv.number && (
+                            <span className="mr-2">{inv.number}</span>
+                          )}
+                          {!isPromptPay && inv.period_start && inv.period_end && (
+                            <span>{inv.period_start} → {inv.period_end}</span>
+                          )}
+                          <span className="ml-2 opacity-70">{inv.created_at}</span>
+                        </div>
                       </div>
+
                       <div className="flex shrink-0 gap-2">
                         {inv.invoice_url && (
                           <a
@@ -864,10 +880,10 @@ export default function BillingPage() {
                             rel="noreferrer"
                             className="text-xs font-medium text-brand-600 underline underline-offset-2 hover:text-brand-700"
                           >
-                            View
+                            {isPromptPay ? "Receipt" : "View"}
                           </a>
                         )}
-                        {inv.pdf_url && (
+                        {!isPromptPay && inv.pdf_url && (
                           <a
                             href={inv.pdf_url}
                             target="_blank"
@@ -911,15 +927,26 @@ export default function BillingPage() {
                       .replace("{plan}", plan?.display_name ?? "")
                       .replace("{date}", fmtDate(sub.current_period_end))}
                   </p>
+                  {/* PromptPay renewal hint — shown when there is no Stripe
+                      recurring subscription (PromptPay is always cancel_at_period_end) */}
+                  {!info?.has_subscription && (
+                    <p className="mt-1 flex items-center gap-1.5 text-[13px] text-amber-600 dark:text-amber-400">
+                      <QrCode className="h-3.5 w-3.5 shrink-0" />
+                      {t("billing.promptpay.renew")}
+                    </p>
+                  )}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={reactivatePlan}
-                  disabled={reactivating}
-                >
-                  {reactivating ? "…" : t("billing.cancel.undo")}
-                </Button>
+                {/* Only show the "Reactivate" button for card subscriptions */}
+                {info?.has_subscription && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={reactivatePlan}
+                    disabled={reactivating}
+                  >
+                    {reactivating ? "…" : t("billing.cancel.undo")}
+                  </Button>
+                )}
               </div>
             ) : (
               /* ── Active, offer cancel ── */
@@ -937,7 +964,7 @@ export default function BillingPage() {
                 <Button
                   variant="danger"
                   size="sm"
-                  onClick={cancelPlan}
+                  onClick={() => setCancelDialog(true)}
                   disabled={canceling}
                 >
                   {canceling
@@ -948,7 +975,165 @@ export default function BillingPage() {
             )}
           </div>
         )}
+        {/* ── Payment method picker ─────────────────────────────────── */}
+        <PaymentMethodDialog
+          plan={paymentDialog}
+          interval={interval}
+          onClose={() => setPaymentDialog(null)}
+          onCard={(planId) => {
+            setPaymentDialog(null);
+            checkout(planId);
+          }}
+          onPromptPay={(planId) => {
+            setPaymentDialog(null);
+            promptPayCheckout(planId);
+          }}
+          busyCard={busy}
+          busyPP={busyPP}
+          t={t}
+        />
+
+        {/* ── Confirm dialogs ───────────────────────────────────────── */}
+        <ConfirmDialog
+          open={cancelDialog}
+          onClose={() => setCancelDialog(false)}
+          onConfirm={cancelPlan}
+          loading={canceling}
+          variant="danger"
+          title={t("billing.cancel.title")}
+          description={
+            t("billing.cancel.desc")
+              .replace("{plan}", plan?.display_name ?? "")
+              .replace("{date}", fmtDate(sub?.current_period_end))
+          }
+          icon={<AlertTriangle className="h-5 w-5" />}
+          confirmLabel={t("billing.cancel.btn")}
+          cancelLabel={t("billing.cancel.keep")}
+        />
+
+        <ConfirmDialog
+          open={removeCardDialog !== null}
+          onClose={() => setRemoveCardDialog(null)}
+          onConfirm={() => removeCardDialog && removeCard(removeCardDialog)}
+          loading={removingCard !== null}
+          variant="warning"
+          title={t("billing.method.remove")}
+          description={t("billing.method.removeConfirm")}
+          icon={<Trash2 className="h-5 w-5" />}
+          confirmLabel={t("billing.method.remove")}
+        />
       </PageBody>
     </AppShell>
+  );
+}
+
+// ── PaymentMethodDialog ───────────────────────────────────────────────────────
+
+function PaymentMethodDialog({
+  plan,
+  interval,
+  onClose,
+  onCard,
+  onPromptPay,
+  busyCard,
+  busyPP,
+  t,
+}: {
+  plan: Plan | null;
+  interval: Interval;
+  onClose: () => void;
+  onCard: (planId: string) => void;
+  onPromptPay: (planId: string) => void;
+  busyCard: string | null;
+  busyPP: string | null;
+  t: (key: string) => string;
+}) {
+  if (!plan) return null;
+
+  // Compute effective price label for this interval
+  const eff: Interval =
+    interval === "year" && plan.stripe_price_id_yearly ? "year" : "month";
+  const priceLabel =
+    plan.price === 0
+      ? t("billing.price.free")
+      : eff === "year"
+        ? `฿${(plan.yearly_price ?? plan.price * 12).toLocaleString()}/yr`
+        : `฿${plan.price.toLocaleString()}/mo`;
+
+  const anyBusy = busyCard !== null || busyPP !== null;
+
+  return (
+    <Dialog
+      open={!!plan}
+      onClose={onClose}
+      title={t("billing.payMethod.title")}
+      description={`${t("billing.payMethod.for")}: ${plan.display_name} — ${priceLabel}`}
+      icon={<CreditCard className="h-5 w-5" />}
+      width="max-w-sm"
+    >
+      <Dialog.Body className="space-y-3 pb-6">
+        {/* ── Card option ── */}
+        <button
+          type="button"
+          onClick={() => onCard(plan.id)}
+          disabled={anyBusy}
+          className="group flex w-full items-start gap-4 rounded-xl border-2 border-line2 bg-page p-4 text-left transition-all hover:border-brand-400 hover:bg-brand-softer disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {/* Icon */}
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-600">
+            <CreditCard className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-ink">
+                {t("billing.payMethod.card.title")}
+              </span>
+              <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700 dark:bg-green-950/50 dark:text-green-400">
+                {t("billing.payMethod.card.badge")}
+              </span>
+            </div>
+            <p className="mt-0.5 text-[13px] text-ink-muted">
+              {t("billing.payMethod.card.desc")}
+            </p>
+          </div>
+          {busyCard === plan.id ? (
+            <span className="shrink-0 text-sm text-ink-faint">…</span>
+          ) : (
+            <ArrowRight className="h-4 w-4 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-brand-600" />
+          )}
+        </button>
+
+        {/* ── PromptPay option ── */}
+        <button
+          type="button"
+          onClick={() => onPromptPay(plan.id)}
+          disabled={anyBusy}
+          className="group flex w-full items-start gap-4 rounded-xl border-2 border-line2 bg-page p-4 text-left transition-all hover:border-[#003F8A]/40 hover:bg-[#003F8A]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:border-blue-400/40 dark:hover:bg-blue-950/20"
+        >
+          {/* Icon */}
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#003F8A]/20 bg-[#003F8A]/10 text-[#003F8A] dark:border-blue-400/20 dark:bg-blue-950/30 dark:text-blue-300">
+            <QrCode className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-ink">
+                {t("billing.payMethod.pp.title")}
+              </span>
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
+                {t("billing.payMethod.pp.badge")}
+              </span>
+            </div>
+            <p className="mt-0.5 text-[13px] text-ink-muted">
+              {t("billing.payMethod.pp.desc")}
+            </p>
+          </div>
+          {busyPP === plan.id ? (
+            <span className="shrink-0 text-sm text-ink-faint">…</span>
+          ) : (
+            <ArrowRight className="h-4 w-4 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-[#003F8A] dark:group-hover:text-blue-400" />
+          )}
+        </button>
+      </Dialog.Body>
+    </Dialog>
   );
 }

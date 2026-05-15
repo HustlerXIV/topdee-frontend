@@ -300,9 +300,26 @@ export const dictionary = {
   },
   "analytics.kpi.satisfaction": { th: "😊 ความพึงพอใจ", en: "😊 Satisfaction" },
   "analytics.kpi.minutes": { th: "นาที", en: "min" },
-  "analytics.bar.title": { th: "ปริมาณแชทรายวัน", en: "Daily chat volume" },
-  "analytics.pie.title": { th: "แชทตาม Channel", en: "Chats by channel" },
-  "analytics.top.title": { th: "Top 5 คำถามที่ถามบ่อย", en: "Top 5 questions" },
+  "analytics.kpi.totalConvs": { th: "💬 การสนทนาทั้งหมด", en: "💬 Total conversations" },
+  "analytics.kpi.aiResolved2": { th: "🤖 AI ตอบได้เอง", en: "🤖 AI resolved" },
+  "analytics.kpi.humanTakeover": { th: "👤 Human เข้ามาช่วย", en: "👤 Human takeovers" },
+  "analytics.kpi.uniqueCustomers": { th: "👥 ลูกค้าไม่ซ้ำ", en: "👥 Unique customers" },
+  "analytics.bar.title": { th: "การสนทนารายวัน", en: "Conversations per day" },
+  "analytics.pie.title": { th: "สัดส่วนตาม Channel", en: "Breakdown by channel" },
+  "analytics.resolution.title": { th: "สรุปการแก้ไขปัญหา", en: "Resolution summary" },
+  "analytics.resolution.aiDesc": { th: "AI ตอบครบ ไม่ต้องใช้ทีม", en: "Handled fully by AI" },
+  "analytics.resolution.humanDesc": { th: "ทีมเข้ามาช่วยตอบ", en: "Team member stepped in" },
+  "analytics.resolution.unanswered": { th: "ยังไม่มีการตอบกลับ", en: "Awaiting response" },
+  "analytics.noData": { th: "ยังไม่มีข้อมูลในช่วงนี้", en: "No data for this period" },
+  "analytics.loading": { th: "กำลังโหลดข้อมูล…", en: "Loading data…" },
+  "analytics.change.up": { th: "↑ {n}% จากช่วงก่อน", en: "↑ {n}% vs prev period" },
+  "analytics.change.down": { th: "↓ {n}% จากช่วงก่อน", en: "↓ {n}% vs prev period" },
+  "analytics.change.same": { th: "เท่ากับช่วงก่อน", en: "Same as prev period" },
+  "analytics.change.new": { th: "ไม่มีข้อมูลช่วงก่อน", en: "No prior period data" },
+  "analytics.channel.line": { th: "LINE OA", en: "LINE OA" },
+  "analytics.channel.facebook": { th: "Facebook", en: "Facebook" },
+  "analytics.channel.dashboard": { th: "Playground", en: "Playground" },
+  "analytics.sub2": { th: "ข้อมูลจริงจากระบบ — ไม่รวมการทดสอบใน Playground", en: "Live data from your workspace — playground tests excluded" },
 
   // ── Billing ───────────────────────────────────────────
   "billing.title": {
@@ -367,6 +384,7 @@ export const dictionary = {
   "billing.cancel.scheduled": { th: "Subscription จะสิ้นสุดวันที่ {date}", en: "Subscription cancels on {date}" },
   "billing.cancel.scheduledDesc": { th: "คุณยังใช้แผน {plan} ได้ถึง {date} หลังจากนั้นจะเปลี่ยนเป็น Free plan โดยอัตโนมัติ ไม่มีการเรียกเก็บเงินอีก", en: "You keep full access to {plan} until {date}. On that date your account moves to the Free plan automatically — no further charges." },
   "billing.cancel.undo": { th: "ยกเลิกการยกเลิก", en: "Undo cancellation" },
+  "billing.cancel.keep": { th: "คงการสมัครสมาชิกไว้", en: "Keep subscription" },
 
   // Past-due warning
   "billing.pastDue.msg": { th: "การชำระเงินครั้งล่าสุดล้มเหลว อัปเดตวิธีชำระเงินเพื่อรักษาการเข้าถึง", en: "Your last payment failed. Update your payment method to avoid losing access." },
@@ -388,6 +406,20 @@ export const dictionary = {
   "billing.plans.unavailable": { th: "ไม่พร้อมใช้งาน", en: "Not available" },
   "billing.plans.popular": { th: "ยอดนิยม", en: "Popular" },
   "billing.plans.billedAnnually": { th: "เรียกเก็บรายปี", en: "billed annually" },
+
+  // PromptPay payment option
+  "billing.promptpay.btn": { th: "จ่ายผ่าน PromptPay", en: "Pay with PromptPay" },
+  "billing.promptpay.note": { th: "จ่ายครั้งเดียว ไม่ต่ออายุอัตโนมัติ", en: "One-time · no auto-renewal" },
+  "billing.promptpay.renew": { th: "ต่ออายุด้วย PromptPay ก่อนหมดอายุ", en: "Renew via PromptPay before expiry" },
+  // Payment method picker dialog
+  "billing.payMethod.title": { th: "เลือกวิธีชำระเงิน", en: "Choose payment method" },
+  "billing.payMethod.for": { th: "สำหรับแผน", en: "For plan" },
+  "billing.payMethod.card.title": { th: "บัตรเครดิต / เดบิต", en: "Credit / Debit Card" },
+  "billing.payMethod.card.desc": { th: "ชำระอัตโนมัติทุกรอบบิล ยกเลิกได้ตลอดเวลา", en: "Auto-charged each billing period. Cancel anytime." },
+  "billing.payMethod.card.badge": { th: "ต่ออายุอัตโนมัติ", en: "Auto-renews" },
+  "billing.payMethod.pp.title": { th: "PromptPay (QR Code)", en: "PromptPay (QR Code)" },
+  "billing.payMethod.pp.desc": { th: "สแกน QR ผ่านแอปธนาคาร จ่ายครั้งเดียวต่อรอบ ไม่มีการเรียกเก็บอัตโนมัติ", en: "Scan QR via your banking app. Charged once per period — renew manually when it expires." },
+  "billing.payMethod.pp.badge": { th: "ไม่ต่ออายุอัตโนมัติ", en: "Manual renewal" },
 
   // Expired callout
   "billing.expired.msg": { th: "Subscription ของคุณสิ้นสุดเมื่อวันที่ {date} และได้เปลี่ยนเป็น Free plan แล้ว เลือกแผนด้านบนเพื่อสมัครใหม่", en: "Your subscription ended on {date} and you have been moved to the Free plan. Choose a plan above to resubscribe." },

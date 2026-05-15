@@ -233,9 +233,11 @@ export type Invoice = {
   amount_paid: number;   // in smallest unit (satang / cents)
   currency: string;      // "thb" | "usd" …
   status: string;        // "paid" | "open" | "void" | "uncollectible"
+  source: string;        // "invoice" (card/subscription) | "promptpay"
+  description: string;   // e.g. "Starter — 1 Month" for PromptPay
   period_start: string;  // "2025-01-01"
   period_end: string;    // "2025-02-01"
-  invoice_url: string;   // hosted Stripe invoice page
+  invoice_url: string;   // hosted Stripe invoice page or receipt
   pdf_url: string;
   created_at: string;    // "2025-01-01"
 };
@@ -253,6 +255,32 @@ export type BillingInfo = {
   has_subscription: boolean;
   has_stripe_customer: boolean;
   usage: BillingUsage;
+};
+
+// ── Analytics ────────────────────────────────────────────────────────
+export type DailyStat = {
+  date: string;   // "YYYY-MM-DD"
+  count: number;
+};
+
+export type ChannelStat = {
+  channel: string; // "line" | "facebook" | …
+  count: number;
+  pct: number;     // 0–100
+};
+
+export type AnalyticsStats = {
+  total_conversations: number;
+  prev_total_conversations: number;
+  ai_resolved_count: number;
+  ai_resolved_pct: number;
+  prev_ai_resolved_pct: number;
+  human_takeovers: number;
+  unique_customers: number;
+  prev_unique_customers: number;
+  channel_breakdown: ChannelStat[];
+  daily: DailyStat[];
+  days_in_range: number;
 };
 
 // One row in the playground "past tests" picker.
@@ -532,7 +560,20 @@ export const api = {
     /** Fetch last 24 invoices from Stripe. */
     invoices: () =>
       request<{ invoices: Invoice[] }>('/api/v1/billing/invoices'),
+    /**
+     * Create a Stripe Checkout session for PromptPay (one-time payment mode).
+     * PromptPay does not support recurring subscriptions — the plan is granted
+     * for one billing period (month or year) then auto-expires.
+     */
+    promptPayCheckout: (plan: string, interval: 'month' | 'year' = 'month') =>
+      request<{ url: string }>('/api/v1/billing/promptpay-checkout', {
+        method: 'POST',
+        body: JSON.stringify({ plan, interval }),
+      }),
   },
+
+  analytics: (range: '7d' | '30d' | 'month' = '7d') =>
+    request<AnalyticsStats>(`/api/v1/analytics?range=${range}`),
 
   bot: {
     get: () => request<BotSettings>('/api/v1/bot'),
