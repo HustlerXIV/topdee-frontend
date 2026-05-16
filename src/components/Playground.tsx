@@ -109,7 +109,6 @@ export function Playground({ height = 360 }: { height?: number }) {
     const message = input.trim();
     if (!message || busy) return;
 
-    setErr(null);
     setBusy(true);
     setInput('');
     setTurns((tr) => [...tr, { role: 'user', content: message }]);
