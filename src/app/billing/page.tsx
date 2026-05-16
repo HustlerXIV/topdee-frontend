@@ -231,7 +231,7 @@ export default function BillingPage() {
             );
         });
     } else if (status === "cancel") {
-      showToast("Checkout cancelled — no charge was made.", "info");
+      showToast("Checkout cancelled — no charge was made.", "default");
       window.history.replaceState({}, "", "/billing");
     }
   }, [showToast]);

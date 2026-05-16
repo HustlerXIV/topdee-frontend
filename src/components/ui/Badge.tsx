@@ -11,7 +11,9 @@ type Tone =
   | 'success'
   | 'warning'
   | 'info'
-  | 'neutral';
+  | 'neutral'
+  | 'default'
+  | 'error';
 
 const toneMap: Record<Tone, string> = {
   admin: 'bg-brand-100 text-brand-600 dark:bg-brand-soft dark:text-brand-200',
@@ -24,6 +26,8 @@ const toneMap: Record<Tone, string> = {
   warning: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-200',
   info: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-200',
   neutral: 'bg-muted text-ink-muted',
+  default: 'bg-muted text-ink-muted',
+  error: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
 };
 
 export function Badge({
