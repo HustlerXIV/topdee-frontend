@@ -6,6 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
 import { ToastViewport } from "@/components/ui/Toast";
 import { useAuth } from "@/store/auth";
+import { useInboxBadge } from "@/store/inbox-badge";
 import { cn } from "@/lib/cn";
 
 /**
@@ -21,14 +22,23 @@ export function AppShell({
 }) {
   const router = useRouter();
   const { token, hydrated, hydrate } = useAuth();
+  const { init: initBadge, teardown: teardownBadge } = useInboxBadge();
 
   useEffect(() => {
     if (!hydrated) hydrate();
   }, [hydrated, hydrate]);
 
   useEffect(() => {
-    if (hydrated && !token) router.replace("/login");
-  }, [hydrated, token, router]);
+    if (hydrated && !token) {
+      teardownBadge();
+      router.replace("/login");
+    }
+  }, [hydrated, token, router, teardownBadge]);
+
+  // Connect WebSocket and fetch initial unread count once we have a token.
+  useEffect(() => {
+    if (token) initBadge(token);
+  }, [token, initBadge]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-page">
@@ -36,8 +46,8 @@ export function AppShell({
 
       <main
         className={cn(
-          "flex-1 overflow-y-auto",
-          withPadding ? "" : "flex flex-col",
+          "flex-1 pt-[57px] md:pt-0",
+          withPadding ? "overflow-y-auto" : "flex min-h-0 flex-col overflow-hidden",
         )}
       >
         {children}
@@ -79,5 +89,5 @@ export function PageHeader({
 }
 
 export function PageBody({ children }: { children: ReactNode }) {
-  return <div className="px-6 pb-24 pt-6 md:px-8">{children}</div>;
+  return <div className="px-6 pb-8 pt-6 md:px-8">{children}</div>;
 }

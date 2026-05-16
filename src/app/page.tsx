@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import { CompactPreferences } from "@/components/PreferencesToggle";
 import { useT } from "@/lib/i18n/useT";
 import { usePreferences } from "@/store/preferences";
+import { api, type Plan } from "@/lib/api";
 import {
   MessageCircle,
   Facebook,
@@ -111,98 +113,16 @@ const FEATURES: FeatureSpec[] = [
   },
 ];
 
-const PLANS = [
-  {
-    name: "Starter",
-    price: "฿490",
-    th: {
-      desc: "สำหรับธุรกิจที่เพิ่งเริ่ม",
-      cta: "เริ่มใช้งาน",
-      features: [
-        "2 ช่องทาง (LINE + FB)",
-        "AI Chatbot 1 บอท",
-        "ไฟล์ Knowledge Base 50MB",
-        "1,000 ข้อความ/เดือน",
-        "สมาชิกทีม 2 คน",
-      ],
-    },
-    en: {
-      desc: "For businesses just getting started",
-      cta: "Start now",
-      features: [
-        "2 channels (LINE + FB)",
-        "1 AI Chatbot",
-        "50MB Knowledge Base",
-        "1,000 messages/month",
-        "2 team members",
-      ],
-    },
-    popular: false,
-  },
-  {
-    name: "Growth",
-    price: "฿990",
-    th: {
-      desc: "สำหรับ SME ที่กำลังขยาย",
-      cta: "เริ่มใช้งาน",
-      features: [
-        "4 ช่องทาง (LINE, FB, IG, Web)",
-        "AI Chatbot 3 บอท",
-        "ไฟล์ Knowledge Base 500MB",
-        "10,000 ข้อความ/เดือน",
-        "สมาชิกทีม 10 คน",
-        "Analytics Dashboard",
-      ],
-    },
-    en: {
-      desc: "For SMBs that are scaling",
-      cta: "Start now",
-      features: [
-        "4 channels (LINE, FB, IG, Web)",
-        "3 AI Chatbots",
-        "500MB Knowledge Base",
-        "10,000 messages/month",
-        "10 team members",
-        "Analytics Dashboard",
-      ],
-    },
-    popular: true,
-  },
-  {
-    name: "Pro",
-    price: "฿2,490",
-    th: {
-      desc: "สำหรับธุรกิจที่ต้องการเต็มพลัง",
-      cta: "ติดต่อทีมขาย",
-      features: [
-        "ช่องทางไม่จำกัด",
-        "AI Chatbot ไม่จำกัด",
-        "Knowledge Base 5GB",
-        "ข้อความไม่จำกัด",
-        "สมาชิกทีมไม่จำกัด",
-        "API Access + Webhook",
-      ],
-    },
-    en: {
-      desc: "For businesses going all-in",
-      cta: "Talk to sales",
-      features: [
-        "Unlimited channels",
-        "Unlimited AI Chatbots",
-        "5GB Knowledge Base",
-        "Unlimited messages",
-        "Unlimited team",
-        "API Access + Webhook",
-      ],
-    },
-    popular: false,
-  },
-];
 
 export default function HomePage() {
   const t = useT();
   const locale = usePreferences((s) => s.locale);
   const isTh = locale === "th";
+  const [plans, setPlans] = useState<Plan[]>([]);
+
+  useEffect(() => {
+    api.plans().then(setPlans).catch(() => {});
+  }, []);
 
   return (
     <main className="page-enter bg-page text-ink">
@@ -316,53 +236,76 @@ export default function HomePage() {
           {t("landing.pricing.subtitle")}
         </p>
         <div className="mx-auto mt-12 grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {PLANS.map((p) => {
-            const copy = isTh ? p.th : p.en;
+          {plans.length === 0 && (
+            <p className="col-span-3 text-center text-sm text-ink-faint">Loading…</p>
+          )}
+          {plans.map((p) => {
+            const popular = p.is_recommended;
+            const priceLabel = p.price === 0
+              ? (isTh ? "ฟรี" : "Free")
+              : `฿${p.price.toLocaleString()}`;
+            const trialLabel = p.expiry_days > 0
+              ? (isTh ? `ทดลองใช้ ${p.expiry_days} วัน` : `${p.expiry_days}-day trial`)
+              : null;
             return (
               <div
-                key={p.name}
-                className={`relative rounded-3xl border-2 bg-card p-8 ${p.popular ? "border-brand-600" : "border-line2"}`}
+                key={p.id}
+                className={`relative rounded-3xl border-2 bg-card p-8 ${popular ? "border-brand-600" : "border-line2"}`}
               >
-                {p.popular && (
+                {popular && (
                   <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-brand-600 px-4 py-1 text-xs font-bold text-white">
                     <Star className="h-3 w-3 fill-white" />
                     {isTh ? "ยอดนิยม" : "Popular"}
                   </span>
                 )}
                 <div className="text-sm font-semibold uppercase tracking-wider text-ink-muted">
-                  {p.name}
+                  {p.display_name}
                 </div>
                 <div className="mt-2 text-4xl font-extrabold text-ink">
-                  {p.price}
-                  <span className="text-base font-medium text-ink-muted">
-                    {isTh ? "/เดือน" : "/mo"}
-                  </span>
+                  {priceLabel}
+                  {p.price > 0 && (
+                    <span className="text-base font-medium text-ink-muted">
+                      {isTh ? "/เดือน" : "/mo"}
+                    </span>
+                  )}
                 </div>
-                <p className="mb-6 mt-2 text-[13px] text-ink-faint">
-                  {copy.desc}
-                </p>
+                {trialLabel && (
+                  <p className="mt-0.5 text-[12px] font-semibold text-brand-600">{trialLabel}</p>
+                )}
+                <p className="mb-6 mt-2 text-[13px] text-ink-faint">{p.description}</p>
                 <ul className="mb-7 space-y-2.5">
-                  {copy.features.map((f) => (
-                    <li
-                      key={f}
-                      className="flex items-center gap-2.5 text-sm text-ink"
-                    >
+                  {Object.entries(p.limits.channels).map(([provider, n]) => (
+                    <li key={provider} className="flex items-center gap-2.5 text-sm text-ink">
                       <Check className="h-4 w-4 flex-shrink-0 text-brand-600" />
-                      {f}
+                      {n === -1 ? (isTh ? `${provider} ไม่จำกัด` : `Unlimited ${provider}`) : `${n} ${provider}`}
                     </li>
                   ))}
+                  <li className="flex items-center gap-2.5 text-sm text-ink">
+                    <Check className="h-4 w-4 flex-shrink-0 text-brand-600" />
+                    {p.limits.messages_per_month === -1
+                      ? (isTh ? "ข้อความไม่จำกัด" : "Unlimited messages")
+                      : `${p.limits.messages_per_month.toLocaleString()} ${isTh ? "ข้อความ/เดือน" : "msg/mo"}`}
+                  </li>
+                  <li className="flex items-center gap-2.5 text-sm text-ink">
+                    <Check className="h-4 w-4 flex-shrink-0 text-brand-600" />
+                    {p.limits.members === -1
+                      ? (isTh ? "สมาชิกทีมไม่จำกัด" : "Unlimited members")
+                      : `${p.limits.members} ${isTh ? "สมาชิก" : "members"}`}
+                  </li>
+                  <li className="flex items-center gap-2.5 text-sm text-ink">
+                    <Check className="h-4 w-4 flex-shrink-0 text-brand-600" />
+                    {p.limits.storage_mb === -1
+                      ? (isTh ? "พื้นที่ไม่จำกัด" : "Unlimited storage")
+                      : `${p.limits.storage_mb >= 1000 ? `${p.limits.storage_mb / 1000}GB` : `${p.limits.storage_mb}MB`} ${isTh ? "พื้นที่เก็บข้อมูล" : "storage"}`}
+                  </li>
                 </ul>
                 <Link href="/login?tab=register">
                   <Button
                     fullWidth
-                    variant={p.popular ? "primary" : "outline"}
-                    className={
-                      p.popular
-                        ? ""
-                        : "border-brand-600 text-brand-600 hover:bg-brand-soft"
-                    }
+                    variant={popular ? "primary" : "outline"}
+                    className={popular ? "" : "border-brand-600 text-brand-600 hover:bg-brand-soft"}
                   >
-                    {copy.cta}
+                    {isTh ? "เริ่มใช้งาน" : "Get started"}
                   </Button>
                 </Link>
               </div>

@@ -14,7 +14,7 @@ import { cn } from '@/lib/cn';
 import { Bot, RotateCcw, Sparkles } from '@/components/ui/Icon';
 
 type Turn = {
-  role: 'user' | 'ai';
+  role: 'user' | 'ai' | 'notice';
   content: string;
   sources?: string[];
 };
@@ -126,7 +126,19 @@ export function Playground({ height = 360 }: { height?: number }) {
     try {
       const res = await api.playground.send(message, conversationId ?? undefined);
       setConversationId(res.conversation_id);
-      setTurns((tr) => [...tr, { role: 'ai', content: res.reply, sources: res.sources }]);
+      if (res.reply.trim()) {
+        setTurns((tr) => [...tr, { role: 'ai', content: res.reply, sources: res.sources }]);
+      } else {
+        setTurns((tr) => [
+          ...tr,
+          {
+            role: 'notice',
+            content: isTh
+              ? 'โหมดตอบด้วยทีมเปิดอยู่ AI จะไม่ตอบอัตโนมัติ'
+              : 'Team manual reply mode is on. AI will not answer automatically.',
+          },
+        ]);
+      }
 
       // Refresh the picker so the new (or updated) conversation surfaces.
       // No await — fire-and-forget; failures here aren't user-blocking.
@@ -207,11 +219,17 @@ export function Playground({ height = 360 }: { height?: number }) {
             <div
               className={cn(
                 'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                tr.role === 'user' ? 'bg-brand-600 text-white' : 'bg-brand-soft text-brand-600',
+                tr.role === 'user'
+                  ? 'bg-brand-600 text-white'
+                  : tr.role === 'notice'
+                    ? 'bg-muted text-ink-muted'
+                    : 'bg-brand-soft text-brand-600',
               )}
             >
               {tr.role === 'user' ? (
                 isTh ? 'คุณ' : 'You'
+              ) : tr.role === 'notice' ? (
+                'i'
               ) : (
                 <Bot className="h-3.5 w-3.5" />
               )}
@@ -221,6 +239,8 @@ export function Playground({ height = 360 }: { height?: number }) {
                 'rounded-2xl px-3.5 py-2 text-sm leading-relaxed',
                 tr.role === 'user'
                   ? 'rounded-br-md bg-brand-600 text-white'
+                  : tr.role === 'notice'
+                    ? 'rounded-bl-md border border-line2 bg-muted text-ink-muted'
                   : 'rounded-bl-md border border-line2 bg-card text-ink',
               )}
             >

@@ -36,8 +36,14 @@ function LoginPageInner() {
     setErr(null);
     setBusy(true);
     try {
-      const { token } = await api.login(email, password);
-      setSession(token, { email, workspace: '' });
+      const { token, user } = await api.login(email, password);
+      setSession(token, {
+        name: user.name,
+        email: user.email || email,
+        workspace: '',
+        role: user.role,
+        isAdmin: user.isAdmin ?? user.is_platform_admin,
+      });
       router.push('/inbox');
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'login failed');
@@ -51,8 +57,14 @@ function LoginPageInner() {
     setErr(null);
     setBusy(true);
     try {
-      const { token } = await api.register(tenantName, email, password);
-      setSession(token, { email, workspace: tenantName });
+      const { token, user } = await api.register(tenantName, email, password);
+      setSession(token, {
+        name: user.name,
+        email: user.email || email,
+        workspace: tenantName,
+        role: user.role,
+        isAdmin: user.isAdmin ?? user.is_platform_admin,
+      });
       router.push('/onboarding');
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'register failed');

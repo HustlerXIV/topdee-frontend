@@ -1,7 +1,7 @@
 // Minimal typed client for the Go backend. Lives in the browser; reads token
 // from localStorage. For SSR/route handlers, pass the token explicitly.
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
 
 export type KnowledgeFile = {
   filename: string;
@@ -61,11 +61,20 @@ export type FacebookOAuthPagesResp = {
 export type Message = {
   id: string;
   conversation_id: string;
-  role: 'user' | 'ai' | 'human';
+  role: 'user' | 'ai' | 'human' | 'suggestion';
   content: string;
   channel: string;
   external_user_id?: string;
+  attachments?: MessageAttachment[];
   created_at: string;
+};
+
+export type MessageAttachment = {
+  id?: string;
+  type: 'image' | 'video' | 'audio' | 'file' | string;
+  url?: string;
+  content_type?: string;
+  name?: string;
 };
 
 // One row in the inbox list — aggregated from the messages collection.
@@ -76,7 +85,7 @@ export type InboxConversation = {
   customer_name: string;          // "LINE User abcd12"
   preview: string;                // last message, rune-truncated
   last_message_at: string;
-  last_sender_role: 'user' | 'ai' | 'human';
+  last_sender_role: 'user' | 'ai' | 'human' | 'suggestion';
   message_count: number;
 };
 
@@ -92,6 +101,16 @@ export type Member = {
   is_platform_admin?: boolean;
   suspended?: boolean;
   created_at: string;
+};
+
+export type AuthUser = {
+  id?: string;
+  tenant_id?: string;
+  name?: string;
+  email: string;
+  role?: Role;
+  is_platform_admin?: boolean;
+  isAdmin?: boolean;
 };
 
 // ── Platform admin ───────────────────────────────────────────────
@@ -128,6 +147,45 @@ export type AdminTenantFull = AdminTenant & {
   subscription?: Subscription;
 };
 
+export type PlanLimits = {
+  channels: Record<string, number>; // keyed by provider slug, -1 = unlimited
+  members: number;
+  messages_per_month: number;
+  knowledge_bases: number;
+  storage_mb: number;
+};
+
+export type Plan = {
+  id: string;
+  display_name: string;
+  description: string;
+  price: number;
+  currency: string;
+  is_active: boolean;
+  is_public: boolean;       // false = hidden/custom, only assignable by admin
+  is_recommended: boolean;  // shows "Popular" badge on pricing page
+  sort_order: number;
+  expiry_days: number; // 0 = forever
+  /** Monthly Stripe Price ID (price_xxx). Set in Admin → Plans. */
+  stripe_price_id?: string;
+  /** Yearly Stripe Price ID — leave empty if no annual billing option. */
+  stripe_price_id_yearly?: string;
+  /** Display price charged per year, e.g. 9900 for ฿9,900/yr. */
+  yearly_price?: number;
+  /** Badge shown next to the yearly option, e.g. "2 months free", "Save 17%". */
+  yearly_saving_label?: string;
+  limits: PlanLimits;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PlanInput = Omit<Plan, 'created_at' | 'updated_at' | 'is_active' | 'is_public' | 'is_recommended'> & {
+  is_active: boolean;
+  is_public: boolean;
+  is_recommended: boolean;
+  stripe_price_id?: string;
+};
+
 export type AdminMetrics = {
   tenants: {
     total: number;
@@ -159,6 +217,72 @@ export type CreateInviteResp = {
   accept_url: string;
 };
 
+// ── Billing / payment methods ────────────────────────────────────────
+export type PaymentMethod = {
+  id: string;
+  brand: string;   // "visa" | "mastercard" | "amex" | …
+  last4: string;
+  exp_month: number; // 1–12
+  exp_year: number;  // e.g. 2027
+  is_default: boolean;
+};
+
+export type Invoice = {
+  id: string;
+  number: string;
+  amount_paid: number;   // in smallest unit (satang / cents)
+  currency: string;      // "thb" | "usd" …
+  status: string;        // "paid" | "open" | "void" | "uncollectible"
+  source: string;        // "invoice" (card/subscription) | "promptpay"
+  description: string;   // e.g. "Starter — 1 Month" for PromptPay
+  period_start: string;  // "2025-01-01"
+  period_end: string;    // "2025-02-01"
+  invoice_url: string;   // hosted Stripe invoice page or receipt
+  pdf_url: string;
+  created_at: string;    // "2025-01-01"
+};
+
+// ── Billing / self-service ───────────────────────────────────────────
+export type BillingUsage = {
+  members: number;
+  channels: number;
+  messages_this_month: number;
+};
+
+export type BillingInfo = {
+  plan: Plan;
+  subscription?: Subscription;
+  has_subscription: boolean;
+  has_stripe_customer: boolean;
+  usage: BillingUsage;
+};
+
+// ── Analytics ────────────────────────────────────────────────────────
+export type DailyStat = {
+  date: string;   // "YYYY-MM-DD"
+  count: number;
+};
+
+export type ChannelStat = {
+  channel: string; // "line" | "facebook" | …
+  count: number;
+  pct: number;     // 0–100
+};
+
+export type AnalyticsStats = {
+  total_conversations: number;
+  prev_total_conversations: number;
+  ai_resolved_count: number;
+  ai_resolved_pct: number;
+  prev_ai_resolved_pct: number;
+  human_takeovers: number;
+  unique_customers: number;
+  prev_unique_customers: number;
+  channel_breakdown: ChannelStat[];
+  daily: DailyStat[];
+  days_in_range: number;
+};
+
 // One row in the playground "past tests" picker.
 export type PlaygroundConversationSummary = {
   id: string;
@@ -183,6 +307,24 @@ export type BusinessHours = {
   out_of_hours_message: string;
   days: DayHours[];                // length 7, Sun..Sat
   updated_at?: string;
+};
+
+export type SettingsSnapshot = {
+  account: AccountSettings;
+  workspace: WorkspaceSettings;
+};
+
+export type AccountSettings = {
+  name: string;
+  email: string;
+  role: string;
+};
+
+export type WorkspaceSettings = {
+  name: string;
+  timezone: string;
+  website: string;
+  business_type: string;
 };
 
 // Per-tenant bot config. The backend always returns a fully-populated object
@@ -232,14 +374,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export const api = {
   health: () => request<{ status: string }>('/health'),
 
+  // Public — no auth required. Used by homepage and billing page.
+  plans: () => request<Plan[]>('/api/v1/plans'),
+
   register: (tenant_name: string, email: string, password: string) =>
-    request<{ token: string }>('/api/v1/auth/register', {
+    request<{ token: string; user: AuthUser }>('/api/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify({ tenant_name, email, password }),
     }),
 
   login: (email: string, password: string) =>
-    request<{ token: string }>('/api/v1/auth/login', {
+    request<{ token: string; user: AuthUser }>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
@@ -353,7 +498,31 @@ export const api = {
       }),
     deleteUser: (id: string) =>
       request<void>(`/api/v1/admin/users/${id}`, { method: 'DELETE' }),
+    plans: () => request<Plan[]>('/api/v1/admin/plans'),
+    createPlan: (body: PlanInput) =>
+      request<Plan>('/api/v1/admin/plans', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    updatePlan: (id: string, body: PlanInput) =>
+      request<Plan>(`/api/v1/admin/plans/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+    deletePlan: (id: string) =>
+      request<void>(`/api/v1/admin/plans/${id}`, { method: 'DELETE' }),
   },
+
+  inviteInfo: (token: string) =>
+    request<{ email: string; workspace_name: string; inviter_email: string; expires_at: string }>(
+      `/api/v1/auth/invite-info?token=${encodeURIComponent(token)}`
+    ),
+
+  syncCheckoutSession: (sessionId: string) =>
+    request('/api/v1/billing/sync-session', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sessionId }),
+    }),
 
   acceptInvite: (input: { token: string; name: string; password: string }) =>
     request<{ token: string; user: Member }>('/api/v1/auth/accept-invite', {
@@ -362,24 +531,82 @@ export const api = {
     }),
 
   billing: {
+    /** Current plan, subscription status, and live usage stats. */
+    info: () => request<BillingInfo>('/api/v1/billing'),
     /** Returns { url } — frontend should redirect the user to Stripe Checkout. */
-    checkout: (plan: string) =>
+    checkout: (plan: string, interval: 'month' | 'year' = 'month') =>
       request<{ url: string }>('/api/v1/billing/checkout-session', {
         method: 'POST',
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, interval }),
       }),
     /** Returns { url } — Stripe Customer Portal for self-service. */
     portal: () =>
       request<{ url: string }>('/api/v1/billing/portal-session', {
         method: 'POST',
       }),
+    /** List saved payment methods (cards) for this tenant's Stripe customer. */
+    paymentMethods: () =>
+      request<{ payment_methods: PaymentMethod[] }>('/api/v1/billing/payment-methods'),
+    /** Detach (remove) a saved card by its Stripe payment method id. */
+    removePaymentMethod: (id: string) =>
+      request<void>(`/api/v1/billing/payment-methods/${id}`, { method: 'DELETE' }),
+    /**
+     * Schedule the subscription to cancel at the end of the current period.
+     * The tenant keeps full access until then, then drops to Free automatically.
+     */
+    cancel: () => request<void>('/api/v1/billing/cancel', { method: 'POST' }),
+    /** Remove the scheduled cancellation so the subscription renews normally. */
+    reactivate: () => request<void>('/api/v1/billing/reactivate', { method: 'POST' }),
+    /** Fetch last 24 invoices from Stripe. */
+    invoices: () =>
+      request<{ invoices: Invoice[] }>('/api/v1/billing/invoices'),
+    /**
+     * Create a Stripe Checkout session for PromptPay (one-time payment mode).
+     * PromptPay does not support recurring subscriptions — the plan is granted
+     * for one billing period (month or year) then auto-expires.
+     */
+    promptPayCheckout: (plan: string, interval: 'month' | 'year' = 'month') =>
+      request<{ url: string }>('/api/v1/billing/promptpay-checkout', {
+        method: 'POST',
+        body: JSON.stringify({ plan, interval }),
+      }),
   },
+
+  analytics: (range: '7d' | '30d' | 'month' = '7d') =>
+    request<AnalyticsStats>(`/api/v1/analytics?range=${range}`),
 
   bot: {
     get: () => request<BotSettings>('/api/v1/bot'),
     update: (input: Partial<Omit<BotSettings, 'updated_at'>>) =>
       request<BotSettings>('/api/v1/bot', {
         method: 'PUT',
+        body: JSON.stringify(input),
+      }),
+  },
+
+  settings: {
+    get: () => request<SettingsSnapshot>('/api/v1/settings'),
+    updateAccount: (input: { name: string; email: string }) =>
+      request<AccountSettings>('/api/v1/settings/account', {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    updatePassword: (input: {
+      current_password: string;
+      new_password: string;
+    }) =>
+      request<void>('/api/v1/settings/password', {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    updateWorkspace: (input: {
+      name: string;
+      timezone: string;
+      website: string;
+      business_type: string;
+    }) =>
+      request<WorkspaceSettings>('/api/v1/settings/workspace', {
+        method: 'PATCH',
         body: JSON.stringify(input),
       }),
   },
@@ -464,6 +691,8 @@ export const api = {
         `/api/v1/inbox/conversations/${encodeURIComponent(id)}/messages`,
         { method: 'POST', body: JSON.stringify({ text }) },
       ),
+    /** Number of conversations where the customer spoke last (needs reply). */
+    unreadCount: () => request<{ count: number }>('/api/v1/inbox/unread-count'),
   },
 
   playground: {

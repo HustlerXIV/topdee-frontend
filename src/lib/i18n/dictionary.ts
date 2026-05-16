@@ -242,8 +242,8 @@ export const dictionary = {
   },
   "kb.upload.drag": { th: "หรือลากไฟล์มาวางที่นี่", en: "or drag files here" },
   "kb.upload.types": {
-    th: "PDF, DOCX, XLSX, TXT · สูงสุด 20MB ต่อไฟล์",
-    en: "PDF, DOCX, XLSX, TXT · 20MB max per file",
+    th: "PDF, DOCX, XLSX, TXT · สูงสุด 10MB ต่อไฟล์",
+    en: "PDF, DOCX, XLSX, TXT · 10MB max per file",
   },
   "kb.files.section": { th: "ไฟล์ในฐานข้อมูล", en: "Files in this base" },
   "kb.files.empty": {
@@ -300,9 +300,26 @@ export const dictionary = {
   },
   "analytics.kpi.satisfaction": { th: "😊 ความพึงพอใจ", en: "😊 Satisfaction" },
   "analytics.kpi.minutes": { th: "นาที", en: "min" },
-  "analytics.bar.title": { th: "ปริมาณแชทรายวัน", en: "Daily chat volume" },
-  "analytics.pie.title": { th: "แชทตาม Channel", en: "Chats by channel" },
-  "analytics.top.title": { th: "Top 5 คำถามที่ถามบ่อย", en: "Top 5 questions" },
+  "analytics.kpi.totalConvs": { th: "💬 การสนทนาทั้งหมด", en: "💬 Total conversations" },
+  "analytics.kpi.aiResolved2": { th: "🤖 AI ตอบได้เอง", en: "🤖 AI resolved" },
+  "analytics.kpi.humanTakeover": { th: "👤 Human เข้ามาช่วย", en: "👤 Human takeovers" },
+  "analytics.kpi.uniqueCustomers": { th: "👥 ลูกค้าไม่ซ้ำ", en: "👥 Unique customers" },
+  "analytics.bar.title": { th: "การสนทนารายวัน", en: "Conversations per day" },
+  "analytics.pie.title": { th: "สัดส่วนตาม Channel", en: "Breakdown by channel" },
+  "analytics.resolution.title": { th: "สรุปการแก้ไขปัญหา", en: "Resolution summary" },
+  "analytics.resolution.aiDesc": { th: "AI ตอบครบ ไม่ต้องใช้ทีม", en: "Handled fully by AI" },
+  "analytics.resolution.humanDesc": { th: "ทีมเข้ามาช่วยตอบ", en: "Team member stepped in" },
+  "analytics.resolution.unanswered": { th: "ยังไม่มีการตอบกลับ", en: "Awaiting response" },
+  "analytics.noData": { th: "ยังไม่มีข้อมูลในช่วงนี้", en: "No data for this period" },
+  "analytics.loading": { th: "กำลังโหลดข้อมูล…", en: "Loading data…" },
+  "analytics.change.up": { th: "↑ {n}% จากช่วงก่อน", en: "↑ {n}% vs prev period" },
+  "analytics.change.down": { th: "↓ {n}% จากช่วงก่อน", en: "↓ {n}% vs prev period" },
+  "analytics.change.same": { th: "เท่ากับช่วงก่อน", en: "Same as prev period" },
+  "analytics.change.new": { th: "ไม่มีข้อมูลช่วงก่อน", en: "No prior period data" },
+  "analytics.channel.line": { th: "LINE OA", en: "LINE OA" },
+  "analytics.channel.facebook": { th: "Facebook", en: "Facebook" },
+  "analytics.channel.dashboard": { th: "Playground", en: "Playground" },
+  "analytics.sub2": { th: "ข้อมูลจริงจากระบบ — ไม่รวมการทดสอบใน Playground", en: "Live data from your workspace — playground tests excluded" },
 
   // ── Billing ───────────────────────────────────────────
   "billing.title": {
@@ -320,8 +337,8 @@ export const dictionary = {
   },
   "billing.usage.label": { th: "ข้อความที่ใช้ไป", en: "Messages used" },
   "billing.usage.remaining": {
-    th: "เหลืออีก 3,759 ข้อความ ใช้ไป 62%",
-    en: "3,759 left · 62% used",
+    th: "เหลือ",
+    en: "remaining",
   },
   "billing.upgrade": { th: "อัปเกรดเป็น Pro →", en: "Upgrade to Pro →" },
   "billing.method.section": { th: "วิธีชำระเงิน", en: "Payment method" },
@@ -333,7 +350,15 @@ export const dictionary = {
   },
   "billing.invoice.section": {
     th: "ประวัติการชำระเงิน",
-    en: "Invoice history",
+    en: "Payment history",
+  },
+  "billing.invoice.desc": {
+    th: "ใบแจ้งหนี้ล่าสุดจาก Stripe",
+    en: "Recent invoices from Stripe.",
+  },
+  "billing.invoice.empty": {
+    th: "ยังไม่มีใบแจ้งหนี้",
+    en: "No invoices yet.",
   },
   "billing.invoice.paid": { th: "ชำระแล้ว", en: "Paid" },
   "billing.cancel.warn": {
@@ -341,6 +366,81 @@ export const dictionary = {
     en: "Cancel subscription: you keep access until the end of the billing cycle (May 17), then switch to the Free plan.",
   },
   "billing.cancel.btn": { th: "ยกเลิก plan", en: "Cancel plan" },
+
+  // Payment methods section
+  "billing.method.title": { th: "วิธีชำระเงิน", en: "Payment methods" },
+  "billing.method.desc": { th: "บัตรที่บันทึกไว้สำหรับการเรียกเก็บเงินรายเดือน", en: "Cards saved to your account for recurring billing." },
+  "billing.method.loading": { th: "กำลังโหลด…", en: "Loading…" },
+  "billing.method.empty": { th: "ยังไม่มีบัตร สมัครแผนเพื่อเพิ่มบัตร", en: "No cards saved yet. Subscribe to a plan to add one." },
+  "billing.method.default": { th: "ค่าเริ่มต้น", en: "Default" },
+  "billing.method.remove": { th: "ลบบัตร", en: "Remove card" },
+  "billing.method.removeConfirm": { th: "ต้องการลบบัตรนี้ออกจากบัญชีหรือไม่?", en: "Remove this card from your account?" },
+  "billing.method.addChange": { th: "+ เพิ่ม / เปลี่ยนบัตร", en: "+ Add / change card" },
+
+  // Cancel / reactivate section
+  "billing.cancel.title": { th: "ยกเลิก subscription", en: "Cancel subscription" },
+  "billing.cancel.desc": { th: "หากยกเลิก คุณยังใช้แผน {plan} ได้ถึง {date} ซึ่งเป็นสิ้นรอบบิลปัจจุบัน หลังจากนั้นจะเปลี่ยนเป็น Free plan โดยอัตโนมัติ ไม่มีการเรียกเก็บเงินอีก", en: "If you cancel, you keep full access to {plan} until {date} — the end of your current billing period. After that, your account moves to the Free plan automatically. You won't be charged again." },
+  "billing.cancel.canceling": { th: "กำลังยกเลิก…", en: "Canceling…" },
+  "billing.cancel.scheduled": { th: "Subscription จะสิ้นสุดวันที่ {date}", en: "Subscription cancels on {date}" },
+  "billing.cancel.scheduledDesc": { th: "คุณยังใช้แผน {plan} ได้ถึง {date} หลังจากนั้นจะเปลี่ยนเป็น Free plan โดยอัตโนมัติ ไม่มีการเรียกเก็บเงินอีก", en: "You keep full access to {plan} until {date}. On that date your account moves to the Free plan automatically — no further charges." },
+  "billing.cancel.undo": { th: "ยกเลิกการยกเลิก", en: "Undo cancellation" },
+  "billing.cancel.keep": { th: "คงการสมัครสมาชิกไว้", en: "Keep subscription" },
+
+  // Past-due warning
+  "billing.pastDue.msg": { th: "การชำระเงินครั้งล่าสุดล้มเหลว อัปเดตวิธีชำระเงินเพื่อรักษาการเข้าถึง", en: "Your last payment failed. Update your payment method to avoid losing access." },
+  "billing.pastDue.fix": { th: "แก้ไขการชำระเงิน", en: "Fix payment" },
+
+  // Plan grid
+  "billing.plans.title": { th: "เปลี่ยนแผน", en: "Change plan" },
+  "billing.plans.desc": { th: "อัปเกรดหรือดาวน์เกรด — Stripe จัดการส่วนต่างโดยอัตโนมัติ", en: "Upgrade or downgrade — Stripe handles proration automatically." },
+  "billing.plans.monthly": { th: "รายเดือน", en: "Monthly" },
+  "billing.plans.yearly": { th: "รายปี", en: "Yearly" },
+  "billing.plans.saveMore": { th: "ประหยัดกว่า", en: "Save more" },
+  "billing.plans.loading": { th: "กำลังโหลดแผน…", en: "Loading plans…" },
+  "billing.plans.empty": { th: "ไม่มีแผนที่ใช้งานได้", en: "No plans available." },
+  "billing.plans.noYearly": { th: "ไม่มีตัวเลือกรายปี", en: "No yearly option" },
+  "billing.plans.noMonthly": { th: "ไม่มีตัวเลือกรายเดือน", en: "No monthly option" },
+  "billing.plans.current": { th: "แผนปัจจุบัน", en: "Current" },
+  "billing.plans.choose": { th: "เลือก", en: "Choose" },
+  "billing.plans.free": { th: "แผนฟรี", en: "Free tier" },
+  "billing.plans.unavailable": { th: "ไม่พร้อมใช้งาน", en: "Not available" },
+  "billing.plans.popular": { th: "ยอดนิยม", en: "Popular" },
+  "billing.plans.billedAnnually": { th: "เรียกเก็บรายปี", en: "billed annually" },
+
+  // PromptPay payment option
+  "billing.promptpay.btn": { th: "จ่ายผ่าน PromptPay", en: "Pay with PromptPay" },
+  "billing.promptpay.note": { th: "จ่ายครั้งเดียว ไม่ต่ออายุอัตโนมัติ", en: "One-time · no auto-renewal" },
+  "billing.promptpay.renew": { th: "ต่ออายุด้วย PromptPay ก่อนหมดอายุ", en: "Renew via PromptPay before expiry" },
+  // Payment method picker dialog
+  "billing.payMethod.title": { th: "เลือกวิธีชำระเงิน", en: "Choose payment method" },
+  "billing.payMethod.for": { th: "สำหรับแผน", en: "For plan" },
+  "billing.payMethod.card.title": { th: "บัตรเครดิต / เดบิต", en: "Credit / Debit Card" },
+  "billing.payMethod.card.desc": { th: "ชำระอัตโนมัติทุกรอบบิล ยกเลิกได้ตลอดเวลา", en: "Auto-charged each billing period. Cancel anytime." },
+  "billing.payMethod.card.badge": { th: "ต่ออายุอัตโนมัติ", en: "Auto-renews" },
+  "billing.payMethod.pp.title": { th: "PromptPay (QR Code)", en: "PromptPay (QR Code)" },
+  "billing.payMethod.pp.desc": { th: "สแกน QR ผ่านแอปธนาคาร จ่ายครั้งเดียวต่อรอบ ไม่มีการเรียกเก็บอัตโนมัติ", en: "Scan QR via your banking app. Charged once per period — renew manually when it expires." },
+  "billing.payMethod.pp.badge": { th: "ไม่ต่ออายุอัตโนมัติ", en: "Manual renewal" },
+
+  // Expired callout
+  "billing.expired.msg": { th: "Subscription ของคุณสิ้นสุดเมื่อวันที่ {date} และได้เปลี่ยนเป็น Free plan แล้ว เลือกแผนด้านบนเพื่อสมัครใหม่", en: "Your subscription ended on {date} and you have been moved to the Free plan. Choose a plan above to resubscribe." },
+
+  // Stats
+  "billing.stat.channels": { th: "ช่องทาง", en: "Channels" },
+  "billing.stat.members": { th: "สมาชิก", en: "Members" },
+  "billing.stat.aiMessages": { th: "AI messages", en: "AI messages" },
+  "billing.stat.unlimited": { th: "ไม่จำกัด", en: "Unlimited" },
+  "billing.stat.thisMonth": { th: "เดือนนี้", en: "this month" },
+  "billing.stat.slotsLeft": { th: "ช่องว่างเหลือ {n}", en: "{n} slot(s) left" },
+  "billing.stat.left": { th: "เหลือ {n}", en: "{n} left" },
+
+  // Manage subscription button
+  "billing.manage": { th: "จัดการ subscription", en: "Manage subscription" },
+
+  // Current plan banner dynamic strings
+  "billing.currentPlan.cancels": { th: "ยกเลิกวันที่ {date}", en: "Cancels on {date}" },
+  "billing.currentPlan.renews": { th: "ต่ออายุวันที่ {date}", en: "Renews on {date}" },
+  "billing.currentPlan.trial": { th: "ทดลองใช้สิ้นสุดวันที่ {date}", en: "Trial ends {date}" },
+  "billing.price.free": { th: "ฟรี", en: "Free" },
 
   // ── Team ──────────────────────────────────────────────
   "team.title": { th: "👥 Team Members", en: "👥 Team Members" },

@@ -6,23 +6,27 @@ import {
   AdminPageBody,
   AdminPageHeader,
 } from '@/components/layout/AdminShell';
-import { Card, CardHeader } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input, Select } from '@/components/ui/Input';
 import Link from 'next/link';
-import { api, ApiError, type AdminTenant } from '@/lib/api';
+import { api, ApiError, type AdminTenant, type Plan } from '@/lib/api';
 import { useUI } from '@/store/ui';
 import { Building2, Search, Trash2, Power, ArrowRight } from '@/components/ui/Icon';
-
-const PLANS = ['free', 'starter', 'growth', 'pro', 'enterprise'];
 
 export default function AdminTenantsPage() {
   const showToast = useUI((s) => s.showToast);
   const [q, setQ] = useState('');
   const [tenants, setTenants] = useState<AdminTenant[] | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Load all plans (including hidden ones) for the assignment dropdown.
+  useEffect(() => {
+    api.admin.plans().then(setPlans).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,11 +134,17 @@ export default function AdminTenantsPage() {
                         <Select
                           value={t.plan}
                           onChange={(e) => patchTenant(t.id, { plan: e.target.value })}
-                          className="w-32"
+                          className="w-40"
                           disabled={busyId === t.id}
                         >
-                          {PLANS.map((p) => (
-                            <option key={p} value={p}>{p}</option>
+                          {/* If the tenant is on a plan not in the list (e.g. deleted), show it */}
+                          {plans.every((p) => p.id !== t.plan) && (
+                            <option value={t.plan}>{t.plan}</option>
+                          )}
+                          {plans.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.display_name}{!p.is_public ? ' 🔒' : ''}
+                            </option>
                           ))}
                         </Select>
                       </td>

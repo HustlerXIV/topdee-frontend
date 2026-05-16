@@ -5,7 +5,7 @@
  * here so re-selecting is instant.
  */
 import { create } from 'zustand';
-import { api, ApiError, type InboxConversation, type Message } from '@/lib/api';
+import { api, ApiError, type InboxConversation, type Message, type MessageAttachment } from '@/lib/api';
 
 export type Channel = 'line' | 'fb' | 'ig' | 'web';
 export type ConvKind = 'ai' | 'team';
@@ -13,8 +13,9 @@ export type ConvKind = 'ai' | 'team';
 export type ConvMessage = {
   id: string;
   direction: 'in' | 'out';
-  author: 'customer' | 'ai' | 'agent';
+  author: 'customer' | 'ai' | 'agent' | 'suggestion';
   text: string;
+  attachments: MessageAttachment[];
   time: string; // already formatted for display
 };
 
@@ -122,7 +123,7 @@ function customerKey(c: InboxConversation): string {
  * customer was the last to speak, classify by *whether* an AI ever
  * replied — but with what we have we just split on last_sender_role. */
 function kindFor(role: InboxConversation['last_sender_role']): ConvKind {
-  return role === 'human' ? 'team' : 'ai';
+  return role === 'human' || role === 'suggestion' || role === 'user' ? 'team' : 'ai';
 }
 
 function fromApiList(rows: InboxConversation[]): Conversation[] {
@@ -154,12 +155,20 @@ function shortTime(iso: string): string {
 
 function fromApiMessages(msgs: Message[]): ConvMessage[] {
   return msgs.map((m) => {
-    const isOutbound = m.role === 'ai' || m.role === 'human';
+    const isOutbound = m.role === 'ai' || m.role === 'human' || m.role === 'suggestion';
     return {
       id: m.id,
       direction: isOutbound ? 'out' : 'in',
-      author: m.role === 'ai' ? 'ai' : m.role === 'human' ? 'agent' : 'customer',
+      author:
+        m.role === 'ai'
+          ? 'ai'
+          : m.role === 'human'
+            ? 'agent'
+            : m.role === 'suggestion'
+              ? 'suggestion'
+              : 'customer',
       text: m.content,
+      attachments: m.attachments ?? [],
       time: shortTime(m.created_at),
     };
   });
@@ -236,14 +245,24 @@ export const useConversations = create<State>((set, get) => ({
     try {
       const msgs = await api.inbox.messages(id);
       const mapped = fromApiMessages(msgs);
+      // Helpful for debugging the empty-chat-box case: a one-line console
+      // log per fetch tells us if the API returned 0 messages or if the
+      // mapping silently dropped them.
+      if (typeof window !== 'undefined' && (window as { __DEBUG_INBOX?: boolean }).__DEBUG_INBOX) {
+        console.log('[inbox] loadMessages', id, 'got', msgs.length, 'mapped', mapped.length);
+      }
       set((s) => ({
         conversations: s.conversations.map((c) =>
           c.id === id ? { ...c, messages: mapped, loaded: true } : c,
         ),
+        // Clear any stale error from a prior failed load.
+        error: null,
       }));
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) return;
-      set({ error: e instanceof Error ? e.message : 'failed to load messages' });
+      const msg = e instanceof Error ? e.message : 'failed to load messages';
+      console.error('[inbox] loadMessages failed', id, msg);
+      set({ error: msg });
     }
   },
 
@@ -258,6 +277,7 @@ export const useConversations = create<State>((set, get) => ({
       direction: 'out',
       author: 'agent',
       text,
+      attachments: [],
       time: new Date().toLocaleTimeString(undefined, {
         hour: '2-digit',
         minute: '2-digit',
@@ -291,6 +311,7 @@ export const useConversations = create<State>((set, get) => ({
                     direction: 'out',
                     author: 'agent',
                     text: saved.content,
+                    attachments: saved.attachments ?? [],
                     time: shortTime(saved.created_at),
                   }
                 : m,

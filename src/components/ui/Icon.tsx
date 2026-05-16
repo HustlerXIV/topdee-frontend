@@ -38,7 +38,9 @@ import {
   Pencil,
   Trash2,
   X,
+  Menu,
   Check,
+  ChevronDown,
   Copy,
   Upload,
   Download,
@@ -57,6 +59,7 @@ import {
   CircleDot,
   // ── People & objects ──────────────────────────
   User,
+  UserCheck,
   Mail,
   Phone,
   Calendar,
@@ -104,7 +107,9 @@ import {
   Smile,
   Zap,
   DollarSign,
+  Package,
   Link as LinkIcon,
+  QrCode,
   type LucideIcon as _LucideIconType,
 } from 'lucide-react';
 
@@ -136,7 +141,9 @@ export const ICONS = {
   delete: Trash2,
   trash: Trash2,
   close: X,
+  menu: Menu,
   check: Check,
+  chevronDown: ChevronDown,
   copy: Copy,
   upload: Upload,
   download: Download,
@@ -158,6 +165,7 @@ export const ICONS = {
 
   // People & misc
   user: User,
+  userCheck: UserCheck,
   email: Mail,
   envelope: Mail,
   phone: Phone,
@@ -215,6 +223,7 @@ export const ICONS = {
   zap: Zap,
   money: DollarSign,
   link: LinkIcon,
+  qr: QrCode,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;
@@ -251,7 +260,9 @@ export {
   Pencil,
   Trash2,
   X,
+  Menu,
   Check,
+  ChevronDown,
   Copy,
   Upload,
   Download,
@@ -268,6 +279,7 @@ export {
   Hourglass,
   CircleDot,
   User,
+  UserCheck,
   Mail,
   Phone,
   Calendar,
@@ -311,5 +323,7 @@ export {
   Smile,
   Zap,
   DollarSign,
+  Package,
   LinkIcon,
+  QrCode,
 };

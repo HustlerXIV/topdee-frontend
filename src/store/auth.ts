@@ -19,6 +19,7 @@ const USER_KEY = 'topdee_user';
 export type Role = 'owner' | 'admin' | 'agent' | 'viewer' | '';
 
 export type User = {
+  name?: string;
   email: string;
   workspace: string; // tenant_name set during register/onboarding
   role?: Role;
@@ -31,6 +32,7 @@ type AuthState = {
   hydrated: boolean;
   hydrate: () => void;
   setSession: (token: string, user: User) => void;
+  setUser: (user: User) => void;
   logout: () => void;
 };
 
@@ -73,6 +75,13 @@ export const useAuth = create<AuthState>((set) => ({
       window.localStorage.setItem(USER_KEY, JSON.stringify(user));
     }
     set({ token, user });
+  },
+
+  setUser: (user) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+    }
+    set({ user });
   },
 
   logout: () => {
