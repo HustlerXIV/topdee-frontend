@@ -4,6 +4,7 @@ import {
   PreferencesProvider,
   themeBootScript,
 } from "@/components/PreferencesProvider";
+import { ToastViewport } from "@/components/ui/Toast";
 import { Kanit } from "next/font/google";
 
 // ✅ Load Kanit font
@@ -32,7 +33,10 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body className={`${kanit.className} min-h-screen bg-page text-ink`}>
-        <PreferencesProvider>{children}</PreferencesProvider>
+        <PreferencesProvider>
+          {children}
+          <ToastViewport />
+        </PreferencesProvider>
       </body>
     </html>
   );

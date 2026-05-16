@@ -20,7 +20,6 @@ export default function AdminTenantsPage() {
   const [q, setQ] = useState('');
   const [tenants, setTenants] = useState<AdminTenant[] | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   // Load all plans (including hidden ones) for the assignment dropdown.
@@ -36,10 +35,7 @@ export default function AdminTenantsPage() {
         .then((rows) => {
           if (!cancelled) setTenants(rows);
         })
-        .catch((e) => {
-          if (!cancelled && !(e instanceof ApiError && e.status === 401))
-            setErr(e.message);
-        });
+        .catch(() => {});
     }, 200);
     return () => {
       cancelled = true;
@@ -100,8 +96,7 @@ export default function AdminTenantsPage() {
             />
           </div>
 
-          {err && <p className="text-sm text-red-500">{err}</p>}
-          {!tenants && !err && (
+          {!tenants && (
             <p className="text-sm text-ink-faint">Loading…</p>
           )}
           {tenants && tenants.length === 0 && (

@@ -8,7 +8,7 @@ import {
 } from '@/components/layout/AdminShell';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { StatCard } from '@/components/ui/StatCard';
-import { api, ApiError, type AdminMetrics } from '@/lib/api';
+import { api, type AdminMetrics } from '@/lib/api';
 import {
   Shield,
   Building2,
@@ -19,17 +19,12 @@ import {
 
 export default function AdminOverviewPage() {
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
-  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     api.admin
       .metrics()
       .then(setMetrics)
-      .catch((e) => {
-        if (!(e instanceof ApiError && (e.status === 401 || e.status === 403))) {
-          setErr(e.message);
-        }
-      });
+      .catch(() => {});
   }, []);
 
   return (
@@ -40,8 +35,7 @@ export default function AdminOverviewPage() {
         description="Cross-tenant view of every workspace, user, and resource on the platform."
       />
       <AdminPageBody>
-        {err && <p className="mb-3 text-sm text-red-500">{err}</p>}
-        {!metrics && !err && (
+        {!metrics && (
           <p className="text-sm text-ink-faint">Loading…</p>
         )}
 

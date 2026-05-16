@@ -38,7 +38,6 @@ function AcceptInviteInner() {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   // Fetch invite info as soon as we have a token
   useEffect(() => {
@@ -55,7 +54,6 @@ function AcceptInviteInner() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
-    setErr(null);
     setBusy(true);
     try {
       const res = await api.acceptInvite({ token, name, password });
@@ -67,9 +65,7 @@ function AcceptInviteInner() {
         isAdmin: res.user.is_platform_admin,
       });
       router.replace('/inbox');
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'Accept failed');
-    } finally {
+    } catch { } finally {
       setBusy(false);
     }
   }
@@ -141,7 +137,6 @@ function AcceptInviteInner() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </FormGroup>
-              {err && <p className="text-sm text-red-500">{err}</p>}
               <Button type="submit" fullWidth size="lg" disabled={busy}>
                 {busy ? '…' : 'Join workspace →'}
               </Button>

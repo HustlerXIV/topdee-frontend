@@ -127,9 +127,7 @@ function PlanModal({
         ? await api.admin.createPlan(form)
         : await api.admin.updatePlan(form.id, form);
       onSave(saved);
-    } catch (ex) {
-      setErr(ex instanceof ApiError ? ex.message : 'save failed');
-    } finally {
+    } catch { } finally {
       setSaving(false);
     }
   }
@@ -586,7 +584,6 @@ function PlanCard({
 export default function AdminPlansPage() {
   const showToast = useUI((s) => s.showToast);
   const [plans, setPlans] = useState<Plan[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
   const [modal, setModal] = useState<'new' | Plan | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -594,9 +591,7 @@ export default function AdminPlansPage() {
     api.admin
       .plans()
       .then(setPlans)
-      .catch((e) => {
-        if (!(e instanceof ApiError && e.status === 403)) setErr(e.message);
-      });
+      .catch(() => {});
   }, []);
 
   function handleSaved(saved: Plan) {
@@ -675,8 +670,7 @@ export default function AdminPlansPage() {
           </div>
         </div>
 
-        {err && <p className="mb-4 text-sm text-red-500">{err}</p>}
-        {!plans && !err && <p className="text-sm text-ink-faint">Loading…</p>}
+        {!plans && <p className="text-sm text-ink-faint">Loading…</p>}
 
         {plans && plans.length === 0 && (
           <div className="rounded-xl border border-dashed border-line2 p-12 text-center">

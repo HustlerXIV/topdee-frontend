@@ -33,7 +33,6 @@ export default function AdminUsersPage() {
   const [q, setQ] = useState('');
   const [tenantFilter, setTenantFilter] = useState('');
   const [suspendedOnly, setSuspendedOnly] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   // Tenant list — once.
@@ -57,10 +56,7 @@ export default function AdminUsersPage() {
         .then((rows) => {
           if (!cancelled) setUsers(rows);
         })
-        .catch((e) => {
-          if (!cancelled && !(e instanceof ApiError && e.status === 401))
-            setErr(e.message);
-        });
+        .catch(() => {});
     }, 200);
     return () => {
       cancelled = true;
@@ -138,8 +134,7 @@ export default function AdminUsersPage() {
             </label>
           </div>
 
-          {err && <p className="text-sm text-red-500">{err}</p>}
-          {!users && !err && <p className="text-sm text-ink-faint">Loading…</p>}
+          {!users && <p className="text-sm text-ink-faint">Loading…</p>}
           {users && users.length === 0 && (
             <p className="text-sm text-ink-faint">No users match.</p>
           )}

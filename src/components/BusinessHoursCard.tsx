@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { api, ApiError, type BusinessHours, type DayHours } from '@/lib/api';
+import { api, type BusinessHours, type DayHours } from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FormGroup, FormRow, Input, Select, Textarea } from '@/components/ui/Input';
@@ -72,15 +72,12 @@ export function BusinessHoursCard() {
   const [hours, setHours] = useState<BusinessHours | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     api.businessHours
       .get()
       .then(setHours)
-      .catch((e) => {
-        if (!(e instanceof ApiError && e.status === 401)) setErr(e.message);
-      })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -104,7 +101,6 @@ export function BusinessHoursCard() {
 
   async function save() {
     if (!hours) return;
-    setErr(null);
     setSaving(true);
     try {
       const updated = await api.businessHours.update({
@@ -114,11 +110,7 @@ export function BusinessHoursCard() {
       });
       setHours(updated);
       showToast(t('settings.toast.saved'), 'success');
-    } catch (e) {
-      const msg = e instanceof ApiError ? e.message : 'save failed';
-      setErr(msg);
-      showToast(msg, 'error');
-    } finally {
+    } catch { } finally {
       setSaving(false);
     }
   }
@@ -220,8 +212,6 @@ export function BusinessHoursCard() {
               />
             </FormGroup>
           </div>
-
-          {err && <p className="mt-3 text-sm text-red-500">{err}</p>}
 
           <Button
             className="mt-5"

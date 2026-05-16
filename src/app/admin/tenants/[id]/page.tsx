@@ -56,7 +56,6 @@ export default function AdminTenantDetailPage() {
   const showToast = useUI((s) => s.showToast);
 
   const [tenant, setTenant] = useState<AdminTenantFull | null>(null);
-  const [err, setErr] = useState<string | null>(null);
   const [savingSub, setSavingSub] = useState(false);
 
   // Local edit copy of subscription so the form doesn't ping the API on every keystroke.
@@ -75,10 +74,7 @@ export default function AdminTenantDetailPage() {
           },
         );
       })
-      .catch((e) => {
-        if (!(e instanceof ApiError && e.status === 401))
-          setErr(e.message);
-      });
+      .catch(() => {});
   }, [id]);
 
   async function patchTenant(patch: { plan?: string; suspended?: boolean }) {
@@ -217,8 +213,7 @@ export default function AdminTenantDetailPage() {
         }
       />
       <AdminPageBody>
-        {err && <p className="mb-3 text-sm text-red-500">{err}</p>}
-        {!tenant && !err && <p className="text-sm text-ink-faint">Loading…</p>}
+        {!tenant && <p className="text-sm text-ink-faint">Loading…</p>}
 
         {tenant && (
           <>

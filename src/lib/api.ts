@@ -352,7 +352,7 @@ export type BotSettings = {
   updated_at?: string;
 };
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
     super(message);
@@ -365,6 +365,16 @@ function getToken(): string | null {
   return window.localStorage.getItem('topdee_token');
 }
 
+// Lazily import the UI store so we never pull Zustand into SSR bundles.
+// Called only when a real error fires in the browser.
+function showErrorToast(message: string) {
+  if (typeof window === 'undefined') return;
+  // Dynamic import keeps the store out of server-side bundles.
+  import('@/store/ui').then(({ useUI }) => {
+    useUI.getState().showToast(message, 'error');
+  });
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers = new Headers(init.headers);
@@ -373,11 +383,21 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  } catch {
+    // Network error (offline, DNS failure, etc.)
+    showErrorToast('Network error — please check your connection.');
+    throw new ApiError(0, 'Network error');
+  }
+
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
   if (!res.ok) {
-    throw new ApiError(res.status, body?.error ?? res.statusText);
+    const message = body?.error ?? res.statusText;
+    showErrorToast(message);
+    throw new ApiError(res.status, message);
   }
   return body as T;
 }
@@ -398,6 +418,18 @@ export const api = {
     request<{ token: string; user: AuthUser }>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    }),
+
+  forgotPassword: (email: string) =>
+    request<{ ok: boolean }>('/api/v1/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (token: string, password: string) =>
+    request<{ ok: boolean }>('/api/v1/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
     }),
 
   knowledge: {
@@ -743,8 +775,6 @@ export const api = {
       ),
   },
 };
-
-export { ApiError };
 
 // Fetch the current user's profile using an explicit token. Used by the
 // Google OAuth callback page before the token is saved to localStorage.

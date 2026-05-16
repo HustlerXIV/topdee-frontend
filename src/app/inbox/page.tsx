@@ -31,7 +31,6 @@ export default function InboxPage() {
     filter,
     search,
     loading,
-    error,
     select,
     setFilter,
     setSearch,
@@ -148,7 +147,6 @@ export default function InboxPage() {
                 Loading…
               </div>
             )}
-            {error && <div className="p-4 text-xs text-red-500">{error}</div>}
             {!loading && filtered.length === 0 && (
               <div className="p-6 text-center text-[13px] text-ink-faint">
                 No conversations yet. Send a message to your connected LINE OA

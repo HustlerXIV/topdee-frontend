@@ -12,7 +12,7 @@ import {
   Textarea,
 } from "@/components/ui/Input";
 import { Playground } from "@/components/Playground";
-import { api, ApiError, type BotSettings } from "@/lib/api";
+import { api, type BotSettings } from "@/lib/api";
 import { useUI } from "@/store/ui";
 import { useT } from "@/lib/i18n/useT";
 import { Bot, Save, Sliders } from "@/components/ui/Icon";
@@ -53,7 +53,6 @@ export default function BotPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   // Load current settings on mount. The backend always returns a populated
   // object so we can hydrate every field without fallbacks.
@@ -61,11 +60,7 @@ export default function BotPage() {
     api.bot
       .get()
       .then(applyFromServer)
-      .catch((e) => {
-        if (!(e instanceof ApiError && e.status === 401)) {
-          setErr(e.message);
-        }
-      })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -80,7 +75,6 @@ export default function BotPage() {
   }
 
   async function save() {
-    setErr(null);
     setSaving(true);
     try {
       const tempNum = Number(temperature);
@@ -95,10 +89,7 @@ export default function BotPage() {
       });
       applyFromServer(updated);
       showToast(t("bot.toast.saved"), "success");
-    } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "save failed";
-      setErr(msg);
-      showToast(msg, "error");
+    } catch {
     } finally {
       setSaving(false);
     }
@@ -184,8 +175,6 @@ export default function BotPage() {
                   maxLength={8000}
                 />
               </FormGroup>
-
-              {err && <p className="mb-2 text-sm text-red-500">{err}</p>}
 
               <Button
                 className="mt-2"

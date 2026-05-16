@@ -19,29 +19,27 @@ export default function KnowledgePage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     api.knowledge
       .list()
       .then(setKbs)
       .catch((e) => {
-        if (!(e instanceof ApiError && e.status === 401)) setErr(e.message);
+        if (e instanceof ApiError && e.status === 401) return; // handled by auth redirect
       });
   }, []);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setErr(null);
     try {
       const kb = await api.knowledge.create({ name, description });
       setKbs((prev) => (prev ? [...prev, kb] : [kb]));
       setName('');
       setDescription('');
       showToast(t('kb.toast.created'), 'success');
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'create failed');
+    } catch {
+      // error toast shown by request()
     } finally {
       setBusy(false);
     }
@@ -69,7 +67,6 @@ export default function KnowledgePage() {
             <FormGroup label={t('kb.create.descLabel')}>
               <Input value={description} onChange={(e) => setDescription(e.target.value)} />
             </FormGroup>
-            {err && <p className="text-sm text-red-500">{err}</p>}
             <Button type="submit" disabled={busy}>
               {busy ? t('kb.create.busy') : t('kb.create.btn')}
             </Button>

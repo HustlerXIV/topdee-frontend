@@ -7,7 +7,7 @@ import { AppShell, PageBody, PageHeader } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { api, ApiError, type KnowledgeBase, type KnowledgeFile } from '@/lib/api';
+import { api, type KnowledgeBase, type KnowledgeFile } from '@/lib/api';
 import { useUI } from '@/store/ui';
 import { useT } from '@/lib/i18n/useT';
 import { cn } from '@/lib/cn';
@@ -40,9 +40,7 @@ export default function KnowledgeDetailPage() {
     api.knowledge
       .get(id)
       .then(setKb)
-      .catch((e) => {
-        if (!(e instanceof ApiError && e.status === 401)) setErr(e.message);
-      });
+      .catch(() => {});
   }, [id]);
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -58,9 +56,7 @@ export default function KnowledgeDetailPage() {
       const updated = await api.knowledge.uploadFile(id, file);
       setKb(updated);
       showToast(`✓ ${file.name}`, 'success');
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'upload failed');
-    } finally {
+    } catch { } finally {
       setUploading(false);
     }
   }
@@ -71,9 +67,7 @@ export default function KnowledgeDetailPage() {
     try {
       await api.knowledge.delete(id);
       router.push('/knowledge');
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'delete failed');
-    }
+    } catch { }
   }
 
   return (

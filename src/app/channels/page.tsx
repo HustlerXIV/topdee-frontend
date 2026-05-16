@@ -65,7 +65,6 @@ export default function ChannelsPage() {
   const showToast = useUI((s) => s.showToast);
 
   const [data, setData] = useState<ChannelsResponse | null>(null);
-  const [err, setErr] = useState<string | null>(null);
   const [openLine, setOpenLine] = useState(false);
   // Holds the OAuth state token while we show the page picker. Null when no
   // picker is open.
@@ -96,11 +95,7 @@ export default function ChannelsPage() {
   async function refresh() {
     try {
       setData(await api.channels.list());
-    } catch (e) {
-      if (!(e instanceof ApiError && e.status === 401)) {
-        setErr(e instanceof Error ? e.message : 'failed');
-      }
-    }
+    } catch { }
   }
 
   async function startFacebookOAuth() {
@@ -146,8 +141,6 @@ export default function ChannelsPage() {
         description={t('channels.sub')}
       />
       <PageBody>
-        {err && <p className="mb-3 text-sm text-red-600">{err}</p>}
-
         <div className="space-y-6">
           {PROVIDERS.map((p) => {
             const conns = byProvider[p.id] ?? [];
@@ -357,7 +350,6 @@ function ConnectLine({
   const [channelId, setChannelId] = useState('');
   const [secret, setSecret] = useState('');
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
   // Live URL preview: the backend tells us the template, we substitute the
   // channel id the user is typing. Renders the same URL the connection will
   // get assigned when they save.
@@ -378,16 +370,13 @@ function ConnectLine({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setErr(null);
     try {
       const conn = await api.channels.connectLine({
         channel_id: channelId.trim(),
         channel_secret: secret.trim(),
       });
       onDone(conn);
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'connect failed');
-    } finally {
+    } catch { } finally {
       setBusy(false);
     }
   }
@@ -438,7 +427,6 @@ function ConnectLine({
               placeholder="••••••••••••••••"
             />
           </FormGroup>
-          {err && <p className="text-sm text-red-500">{err}</p>}
           <Button type="submit" disabled={busy || !channelId || !secret}>
             {busy ? '…' : t('common.connect')}
           </Button>
@@ -492,7 +480,6 @@ function FacebookPagePicker({
   const [pages, setPages] = useState<{ id: string; name: string; category?: string }[] | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -501,9 +488,7 @@ function FacebookPagePicker({
       .then((r) => {
         if (!cancelled) setPages(r.pages);
       })
-      .catch((e) => {
-        if (!cancelled) setErr(e instanceof ApiError ? e.message : 'failed to load pages');
-      });
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -521,12 +506,10 @@ function FacebookPagePicker({
   async function submit() {
     if (picked.size === 0) return;
     setBusy(true);
-    setErr(null);
     try {
       const r = await api.channels.facebook.oauthConnect(state, [...picked]);
       onDone(r.connections.length);
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'connect failed');
+    } catch {
       setBusy(false);
     }
   }
@@ -542,8 +525,7 @@ function FacebookPagePicker({
           </Button>
         }
       />
-      {!pages && !err && <p className="text-sm text-ink-faint">Loading pages…</p>}
-      {err && <p className="text-sm text-red-500">{err}</p>}
+      {!pages && <p className="text-sm text-ink-faint">Loading pages…</p>}
       {pages && pages.length === 0 && (
         <p className="text-sm text-ink-faint">
           No pages found on this Facebook account. Make sure you grant access to at least one page.

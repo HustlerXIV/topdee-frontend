@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   api,
-  ApiError,
   type Message,
   type PlaygroundConversationSummary,
 } from '@/lib/api';
@@ -37,7 +36,6 @@ export function Playground({ height = 360 }: { height?: number }) {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Wraps the setter to also persist to localStorage so a refresh re-opens
@@ -73,11 +71,7 @@ export function Playground({ height = 360 }: { height?: number }) {
           setConversationIdRaw(null);
           setTurns([]);
         }
-      } catch (e) {
-        if (!(e instanceof ApiError && e.status === 401)) {
-          setErr(e instanceof Error ? e.message : 'load failed');
-        }
-      } finally {
+      } catch { } finally {
         if (!cancelled) setLoadingHistory(false);
       }
     }
@@ -102,15 +96,12 @@ export function Playground({ height = 360 }: { height?: number }) {
     try {
       const msgs = await api.playground.conversation(id);
       setTurns(messagesToTurns(msgs));
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'open failed');
-    }
+    } catch { }
   }
 
   function startNew() {
     setConversationId(null);
     setTurns([]);
-    setErr(null);
   }
 
   async function send(e: React.FormEvent) {
@@ -146,11 +137,7 @@ export function Playground({ height = 360 }: { height?: number }) {
         .list()
         .then(setConversations)
         .catch(() => {});
-    } catch (e) {
-      const msg = e instanceof ApiError ? e.message : 'send failed';
-      setErr(msg);
-      setTurns((tr) => [...tr, { role: 'ai', content: `[error: ${msg}]` }]);
-    } finally {
+    } catch { } finally {
       setBusy(false);
     }
   }
@@ -261,7 +248,6 @@ export function Playground({ height = 360 }: { height?: number }) {
       </div>
 
       <form onSubmit={send} className="border-t border-line2 p-3">
-        {err && <p className="mb-2 text-xs text-red-500">{err}</p>}
         <div className="flex gap-2">
           <input
             type="text"

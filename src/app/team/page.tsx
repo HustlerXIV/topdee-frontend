@@ -50,7 +50,6 @@ export default function TeamPage() {
 
   const [members, setMembers] = useState<Member[] | null>(null);
   const [invites, setInvites] = useState<TeamInvite[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<Role>('agent');
@@ -73,7 +72,6 @@ export default function TeamPage() {
 
   function swallowAuth(e: unknown): null {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) return null;
-    setErr(e instanceof Error ? e.message : 'load failed');
     return null;
   }
 
@@ -81,7 +79,6 @@ export default function TeamPage() {
     const email = inviteEmail.trim();
     if (!email) return;
     setInviting(true);
-    setErr(null);
     try {
       const res = await api.team.invite({ email, role: inviteRole });
       setInviteEmail('');
@@ -94,7 +91,6 @@ export default function TeamPage() {
       await refresh();
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : 'invite failed';
-      setErr(msg);
       showToast(msg, 'error');
     } finally {
       setInviting(false);
@@ -161,8 +157,6 @@ export default function TeamPage() {
         description={`${t('team.subFmt')} (${totalSeats}/10)`}
       />
       <PageBody>
-        {err && <p className="mb-3 text-sm text-red-500">{err}</p>}
-
         {/* Owner+admin only — heads-up if a stale token is hiding the form */}
         {!myRole && (
           <div className="mb-5 flex items-start gap-3 rounded-2xl border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-900 dark:border-yellow-900/40 dark:bg-yellow-900/20 dark:text-yellow-200">
