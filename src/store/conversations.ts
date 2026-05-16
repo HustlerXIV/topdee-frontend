@@ -29,6 +29,8 @@ export type Conversation = {
   time: string;
   unread: number;
   kind: ConvKind;
+  /** True when AI couldn't answer or customer asked for a human agent. */
+  needsHuman: boolean;
   online?: boolean;
   messages: ConvMessage[];
   /** Whether messages[] has been fetched (vs just loaded from the list). */
@@ -57,6 +59,8 @@ type State = {
   /** Send a manual reply through the platform's push API. Throws on
    * failure so callers can show a toast. */
   sendMessage: (id: string, text: string) => Promise<void>;
+  /** Clear needs_human flag after team has resolved the escalation. */
+  resolveHandoff: (id: string) => Promise<void>;
 };
 
 // ── Mappers ──────────────────────────────────────────────────────────
@@ -118,11 +122,11 @@ function customerKey(c: InboxConversation): string {
   return c.external_user_id || c.id;
 }
 
-/** Last sender's role determines whether the row gets the "ai" or "team"
- * tab tag. AI replies → "ai"; human agent replies → "team"; if the
- * customer was the last to speak, classify by *whether* an AI ever
- * replied — but with what we have we just split on last_sender_role. */
-function kindFor(role: InboxConversation['last_sender_role']): ConvKind {
+/** Last sender's role + handoff flag determine the tab bucket.
+ * needs_human=true always lands in "team" even if the AI was last to speak
+ * (which is the common case: AI said "I don't know" then flagged for human). */
+function kindFor(role: InboxConversation['last_sender_role'], needsHuman: boolean): ConvKind {
+  if (needsHuman) return 'team';
   return role === 'human' || role === 'suggestion' || role === 'user' ? 'team' : 'ai';
 }
 
@@ -136,7 +140,8 @@ function fromApiList(rows: InboxConversation[]): Conversation[] {
     preview: r.preview,
     time: relativeTime(r.last_message_at),
     unread: 0, // no read-tracking yet on the backend
-    kind: kindFor(r.last_sender_role),
+    kind: kindFor(r.last_sender_role, r.needs_human),
+    needsHuman: r.needs_human ?? false,
     messages: [],
     loaded: false,
   }));
@@ -326,6 +331,28 @@ export const useConversations = create<State>((set, get) => ({
           c.id === id
             ? { ...c, messages: c.messages.filter((m) => m.id !== tempId) }
             : c,
+        ),
+      }));
+      throw e;
+    }
+  },
+
+  resolveHandoff: async (id) => {
+    // Optimistically clear the flag so the badge disappears immediately.
+    set((s) => ({
+      conversations: s.conversations.map((c) =>
+        c.id === id
+          ? { ...c, needsHuman: false, kind: kindFor('ai', false) }
+          : c,
+      ),
+    }));
+    try {
+      await api.inbox.resolveHandoff(id);
+    } catch (e) {
+      // Roll back on failure.
+      set((s) => ({
+        conversations: s.conversations.map((c) =>
+          c.id === id ? { ...c, needsHuman: true, kind: 'team' } : c,
         ),
       }));
       throw e;

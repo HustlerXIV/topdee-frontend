@@ -11,7 +11,16 @@ import { API_URL, ApiError, type MessageAttachment } from "@/lib/api";
 import { useUI } from "@/store/ui";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/cn";
-import { User, Tag, Share2, Check, Sparkles, Send as SendIcon, X } from "@/components/ui/Icon";
+import {
+  User,
+  Tag,
+  Share2,
+  Check,
+  Sparkles,
+  Send as SendIcon,
+  X,
+  UserCheck,
+} from "@/components/ui/Icon";
 import type { ComponentType } from "react";
 
 export default function InboxPage() {
@@ -29,6 +38,7 @@ export default function InboxPage() {
     refresh,
     loadMessages,
     sendMessage,
+    resolveHandoff,
   } = useConversations();
   const user = useAuth((s) => s.user);
   const showToast = useUI((s) => s.showToast);
@@ -40,7 +50,7 @@ export default function InboxPage() {
   useEffect(() => {
     refresh();
     const onFocus = () => refresh();
-    window.addEventListener('focus', onFocus);
+    window.addEventListener("focus", onFocus);
 
     // Poll the conversation list every 5s for fresh customer messages.
     // The active conversation's messages are also re-fetched (force=true)
@@ -65,11 +75,11 @@ export default function InboxPage() {
       else startPolling();
     };
     if (!document.hidden) startPolling();
-    document.addEventListener('visibilitychange', onVisibility);
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
       stopPolling();
     };
   }, [refresh, loadMessages]);
@@ -134,11 +144,11 @@ export default function InboxPage() {
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {loading && conversations.length === 0 && (
-              <div className="p-6 text-center text-xs text-ink-faint">Loading…</div>
+              <div className="p-6 text-center text-xs text-ink-faint">
+                Loading…
+              </div>
             )}
-            {error && (
-              <div className="p-4 text-xs text-red-500">{error}</div>
-            )}
+            {error && <div className="p-4 text-xs text-red-500">{error}</div>}
             {!loading && filtered.length === 0 && (
               <div className="p-6 text-center text-[13px] text-ink-faint">
                 No conversations yet. Send a message to your connected LINE OA
@@ -176,6 +186,14 @@ export default function InboxPage() {
                 showToast(msg, "default");
               }
             }}
+            onResolveHandoff={async () => {
+              try {
+                await resolveHandoff(selected.id);
+                showToast(t("inbox.toast.resolved"), "success");
+              } catch {
+                showToast("Failed to resolve handoff", "default");
+              }
+            }}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-ink-faint">
@@ -196,12 +214,14 @@ function ConversationRow({
   active: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   return (
     <button
       onClick={onClick}
       className={cn(
         "flex w-full items-center gap-3 border-b border-line2 px-4 py-3.5 text-left transition-colors",
         active ? "bg-brand-soft/60" : "hover:bg-muted",
+        conv.needsHuman && !active && "bg-orange-50 dark:bg-orange-950/20",
       )}
     >
       <Avatar
@@ -211,8 +231,15 @@ function ConversationRow({
         badge={<ChannelDot channel={conv.channel} />}
       />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-ink">
-          {conv.customerName}
+        <div className="flex items-center gap-1.5 truncate">
+          <span className="truncate text-sm font-semibold text-ink">
+            {conv.customerName}
+          </span>
+          {conv.needsHuman && (
+            <span className="shrink-0 rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              {t("inbox.handoff.badge")}
+            </span>
+          )}
         </div>
         <div className="truncate text-[13px] text-ink-faint">
           {conv.preview}
@@ -235,11 +262,13 @@ function ChatArea({
   agentName,
   agentInitial,
   onSend,
+  onResolveHandoff,
 }: {
   conv: Conversation;
   agentName: string;
   agentInitial: string;
   onSend: (text: string) => void;
+  onResolveHandoff: () => void;
 }) {
   const t = useT();
   const [draft, setDraft] = useState("");
@@ -248,7 +277,9 @@ function ChatArea({
     alt: string;
   } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const visibleMessages = conv.messages.filter((m) => m.author !== "suggestion");
+  const visibleMessages = conv.messages.filter(
+    (m) => m.author !== "suggestion",
+  );
   const latestSuggestion = [...conv.messages]
     .reverse()
     .find((m) => m.author === "suggestion");
@@ -287,19 +318,40 @@ function ChatArea({
           </p>
         </div>
         <div className="ml-auto flex gap-2">
-          <IconButton title={t("inbox.action.history")} Icon={User} />
+          {/* <IconButton title={t("inbox.action.history")} Icon={User} />
           <IconButton title={t("inbox.action.tag")} Icon={Tag} />
-          <IconButton title={t("inbox.action.transfer")} Icon={Share2} />
-          <IconButton
+          <IconButton title={t("inbox.action.transfer")} Icon={Share2} /> */}
+          {conv.needsHuman && (
+            <button
+              onClick={onResolveHandoff}
+              title={t("inbox.handoff.resolve")}
+              className="flex items-center gap-1.5 rounded-[10px] border border-orange-300 bg-orange-50 px-3 py-1.5 text-[12px] font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-700 dark:bg-orange-950/30 dark:text-orange-300"
+            >
+              <UserCheck className="h-3.5 w-3.5" />
+              {t("inbox.handoff.resolve")}
+            </button>
+          )}
+          {/* <IconButton
             title={t("inbox.action.close")}
             Icon={Check}
             tone="danger"
-          />
+          /> */}
         </div>
       </header>
 
+      {/* Handoff banner */}
+      {conv.needsHuman && (
+        <div className="flex items-center gap-2.5 border-b border-orange-200 bg-orange-50 px-5 py-2.5 text-[13px] text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300">
+          <UserCheck className="h-4 w-4 flex-shrink-0" />
+          <span>{t("inbox.handoff.banner")}</span>
+        </div>
+      )}
+
       {/* Messages */}
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-page p-5">
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 overflow-y-auto bg-page p-5"
+      >
         {visibleMessages.length === 0 && (
           <div className="flex h-full items-center justify-center">
             <div className="rounded-2xl border border-line2 bg-card px-5 py-4 text-center text-sm text-ink-faint">
@@ -379,7 +431,7 @@ function ChatArea({
       </div>
 
       {latestSuggestion && (
-        <div className="mx-5 mb-3 flex items-start gap-2.5 rounded-2xl border border-brand-300 bg-brand-soft px-4 py-3 text-[13px] text-brand-700 dark:text-brand-200">
+        <div className="mx-5 mb-3 flex items-center gap-2.5 rounded-2xl border border-brand-300 bg-brand-soft px-4 py-3 text-[13px] text-brand-700 dark:text-brand-200">
           <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0" />
           <span>
             <strong>{t("inbox.aiSuggestion.label")}</strong>{" "}
@@ -574,14 +626,33 @@ function channelLabel(c: "line" | "fb" | "ig" | "web") {
 // so it's worth keeping front-of-mind).
 function ChannelPill({ channel }: { channel: "line" | "fb" | "ig" | "web" }) {
   const map = {
-    line: { label: "LINE OA", classes: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
-    fb:   { label: "Facebook", classes: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300" },
-    ig:   { label: "Instagram", classes: "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300" },
-    web:  { label: "Webchat", classes: "bg-brand-soft text-brand-700 dark:text-brand-200" },
+    line: {
+      label: "LINE OA",
+      classes:
+        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    },
+    fb: {
+      label: "Facebook",
+      classes: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+    },
+    ig: {
+      label: "Instagram",
+      classes:
+        "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300",
+    },
+    web: {
+      label: "Webchat",
+      classes: "bg-brand-soft text-brand-700 dark:text-brand-200",
+    },
   } as const;
   const m = map[channel];
   return (
-    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-bold", m.classes)}>
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[11px] font-bold",
+        m.classes,
+      )}
+    >
       {m.label}
     </span>
   );

@@ -24,6 +24,9 @@ import {
   Key,
   AlertTriangle,
   Plus,
+  Check,
+  X,
+  Eye,
 } from '@/components/ui/Icon';
 
 // Roles a manager can hand out — owner is reserved for the workspace creator.
@@ -310,19 +313,43 @@ export default function TeamPage() {
                 </tr>
               </thead>
               <tbody>
-                <PermRow label="Reply to chats"        owner="✅" admin="✅" agent="✅" viewer="👁" />
-                <PermRow label="Configure AI bot"      owner="✅" admin="✅" agent="✅" viewer="👁" />
-                <PermRow label="View analytics"        owner="✅" admin="✅" agent="✅" viewer="✅" />
-                <PermRow label="Manage channels"       owner="✅" admin="✅" agent="❌" viewer="❌" />
-                <PermRow label="Invite / remove team"  owner="✅" admin="✅" agent="❌" viewer="❌" />
-                <PermRow label="Change member roles"   owner="✅" admin="❌" agent="❌" viewer="❌" />
-                <PermRow label="Manage billing"        owner="✅" admin="❌" agent="❌" viewer="❌" />
+                <PermRow label="Reply to chats"        owner="full" admin="full" agent="full" viewer="view" />
+                <PermRow label="Configure AI bot"      owner="full" admin="full" agent="full" viewer="view" />
+                <PermRow label="View analytics"        owner="full" admin="full" agent="full" viewer="full" />
+                <PermRow label="Manage channels"       owner="full" admin="full" agent="none" viewer="none" />
+                <PermRow label="Invite / remove team"  owner="full" admin="full" agent="none" viewer="none" />
+                <PermRow label="Change member roles"   owner="full" admin="none" agent="none" viewer="none" />
+                <PermRow label="Manage billing"        owner="full" admin="none" agent="none" viewer="none" />
               </tbody>
             </table>
           </div>
         </Card>
       </PageBody>
     </AppShell>
+  );
+}
+
+type PermLevel = 'full' | 'view' | 'none';
+
+function PermIcon({ level }: { level: PermLevel }) {
+  if (level === 'full') {
+    return (
+      <span className="inline-flex items-center justify-center">
+        <Check className="h-4 w-4 text-green-500" />
+      </span>
+    );
+  }
+  if (level === 'view') {
+    return (
+      <span className="inline-flex items-center justify-center">
+        <Eye className="h-4 w-4 text-sky-500" />
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center justify-center">
+      <X className="h-4 w-4 text-ink-faint" />
+    </span>
   );
 }
 
@@ -334,18 +361,18 @@ function PermRow({
   viewer,
 }: {
   label: string;
-  owner: string;
-  admin: string;
-  agent: string;
-  viewer: string;
+  owner: PermLevel;
+  admin: PermLevel;
+  agent: PermLevel;
+  viewer: PermLevel;
 }) {
   return (
     <tr>
       <td className="border-b border-line2 px-4 py-2.5">{label}</td>
-      <td className="border-b border-line2 px-3 py-2.5 text-center">{owner}</td>
-      <td className="border-b border-line2 px-3 py-2.5 text-center">{admin}</td>
-      <td className="border-b border-line2 px-3 py-2.5 text-center">{agent}</td>
-      <td className="border-b border-line2 px-3 py-2.5 text-center">{viewer}</td>
+      <td className="border-b border-line2 px-3 py-2.5 text-center"><PermIcon level={owner} /></td>
+      <td className="border-b border-line2 px-3 py-2.5 text-center"><PermIcon level={admin} /></td>
+      <td className="border-b border-line2 px-3 py-2.5 text-center"><PermIcon level={agent} /></td>
+      <td className="border-b border-line2 px-3 py-2.5 text-center"><PermIcon level={viewer} /></td>
     </tr>
   );
 }

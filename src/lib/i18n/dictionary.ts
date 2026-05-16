@@ -176,6 +176,10 @@ export const dictionary = {
   "inbox.action.transfer": { th: "โอนให้ทีม", en: "Transfer to team" },
   "inbox.action.close": { th: "ปิดแชท", en: "Close chat" },
   "inbox.toast.sent": { th: "ส่งข้อความแล้ว", en: "Message sent" },
+  "inbox.handoff.badge": { th: "รอทีม", en: "Needs team" },
+  "inbox.handoff.banner": { th: "AI ไม่สามารถตอบได้ หรือลูกค้าต้องการคุยกับทีมงาน", en: "AI couldn't answer or customer requested a team member" },
+  "inbox.handoff.resolve": { th: "รับสนทนาแล้ว", en: "Mark resolved" },
+  "inbox.toast.resolved": { th: "ส่งต่อให้ทีมเรียบร้อย", en: "Handed off to team" },
 
   // ── Bot settings ──────────────────────────────────────
   "bot.title": { th: "🤖 AI Chatbot Settings", en: "🤖 AI Chatbot Settings" },

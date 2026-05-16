@@ -24,6 +24,7 @@ import {
   Copy,
   Plus,
   Trash2,
+  Upload,
 } from "@/components/ui/Icon";
 import { useAuth } from "@/store/auth";
 import { useUI } from "@/store/ui";
@@ -57,6 +58,8 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState("Asia/Bangkok");
   const [website, setWebsite] = useState("");
   const [businessType, setBusinessType] = useState("ecommerce");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [accountName, setAccountName] = useState(user?.name || "");
   const [accountEmail, setAccountEmail] = useState(user?.email || "");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -73,6 +76,7 @@ export default function SettingsPage() {
         setTimezone(s.workspace.timezone || "Asia/Bangkok");
         setWebsite(s.workspace.website || "");
         setBusinessType(s.workspace.business_type || "ecommerce");
+        setLogoUrl(s.workspace.logo_url || "");
         if (user) {
           setUser({
             ...user,
@@ -154,6 +158,23 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const { logo_url } = await api.settings.uploadLogo(file);
+      setLogoUrl(logo_url);
+      showToast("โลโก้อัปโหลดแล้ว / Logo uploaded", "success");
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "upload failed", "error");
+    } finally {
+      setUploadingLogo(false);
+      // Reset input so the same file can be re-selected if needed.
+      e.target.value = "";
+    }
+  }
+
   return (
     <AppShell>
       <PageHeader
@@ -184,17 +205,56 @@ export default function SettingsPage() {
           <>
             <Card>
               <CardHeader icon={<Building2 className="h-4 w-4" />} title={t("settings.workspace.section")} />
+              {/* Logo upload */}
               <div className="mb-5 flex items-center gap-4">
-                <div className="flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-plan-gradient text-white">
-                  <ShoppingBag className="h-8 w-8" />
-                </div>
-                <div>
-                  <div className="mb-1.5 text-sm font-semibold">
-                    โลโก้ร้าน / Logo
+                <label
+                  className={cn(
+                    "group relative flex h-[72px] w-[72px] flex-shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl transition-opacity",
+                    uploadingLogo ? "opacity-60 pointer-events-none" : "hover:opacity-80",
+                    logoUrl ? "bg-muted" : "bg-plan-gradient",
+                  )}
+                  title="Click to change logo"
+                >
+                  {logoUrl ? (
+                    <img
+                      src={logoUrl}
+                      alt="Workspace logo"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <ShoppingBag className="h-8 w-8 text-white" />
+                  )}
+                  {/* Overlay on hover */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Upload className="h-5 w-5 text-white" />
                   </div>
-                  <Button variant="outline" size="sm">
-                    {t("common.edit")}
-                  </Button>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    onChange={handleLogoChange}
+                    disabled={uploadingLogo}
+                  />
+                </label>
+                <div>
+                  <div className="mb-1 text-sm font-semibold">โลโก้ร้าน / Logo</div>
+                  <div className="mb-2 text-xs text-ink-faint">JPEG, PNG หรือ WebP · สูงสุด 5 MB · แนะนำ 256×256 px</div>
+                  <label
+                    className={cn(
+                      "inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line2 bg-card px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-muted",
+                      uploadingLogo && "pointer-events-none opacity-60",
+                    )}
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    {uploadingLogo ? "กำลังอัปโหลด…" : "เปลี่ยนโลโก้ / Change logo"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      onChange={handleLogoChange}
+                      disabled={uploadingLogo}
+                    />
+                  </label>
                 </div>
               </div>
               <FormRow>

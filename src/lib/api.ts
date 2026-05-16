@@ -87,6 +87,8 @@ export type InboxConversation = {
   last_message_at: string;
   last_sender_role: 'user' | 'ai' | 'human' | 'suggestion';
   message_count: number;
+  /** True when the AI couldn't answer or the customer asked for a human. */
+  needs_human: boolean;
 };
 
 // ── Team / members ────────────────────────────────────────────────
@@ -325,6 +327,7 @@ export type WorkspaceSettings = {
   timezone: string;
   website: string;
   business_type: string;
+  logo_url: string;
 };
 
 // Per-tenant bot config. The backend always returns a fully-populated object
@@ -609,6 +612,14 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(input),
       }),
+    uploadLogo: (file: File) => {
+      const fd = new FormData();
+      fd.append('logo', file);
+      return request<{ logo_url: string }>('/api/v1/settings/workspace/logo', {
+        method: 'POST',
+        body: fd,
+      });
+    },
   },
 
   businessHours: {
@@ -693,6 +704,12 @@ export const api = {
       ),
     /** Number of conversations where the customer spoke last (needs reply). */
     unreadCount: () => request<{ count: number }>('/api/v1/inbox/unread-count'),
+    /** Clear the needs_human flag — team has taken over / resolved the question. */
+    resolveHandoff: (id: string) =>
+      request<void>(
+        `/api/v1/inbox/conversations/${encodeURIComponent(id)}/resolve`,
+        { method: 'PATCH' },
+      ),
   },
 
   playground: {
@@ -715,3 +732,21 @@ export const api = {
 };
 
 export { ApiError };
+
+// Fetch the current user's profile using an explicit token. Used by the
+// Google OAuth callback page before the token is saved to localStorage.
+export async function fetchMe(token: string): Promise<AuthUser> {
+  const res = await fetch(`${API_URL}/api/v1/settings`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new ApiError(res.status, body?.error ?? res.statusText);
+  // /settings returns { account: { name, email, role }, workspace: { name } }
+  return {
+    name: body?.account?.name ?? '',
+    email: body?.account?.email ?? '',
+    role: body?.account?.role ?? 'owner',
+    is_platform_admin: body?.account?.is_platform_admin ?? false,
+  };
+}

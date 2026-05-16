@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { api, ApiError } from '@/lib/api';
+import { api, ApiError, API_URL } from '@/lib/api';
 import { useAuth } from '@/store/auth';
 import { useT } from '@/lib/i18n/useT';
 import { AuthLayout } from '@/components/layout/AuthLayout';
@@ -102,7 +102,7 @@ function LoginPageInner() {
 
         {tab === 'login' ? (
           <form onSubmit={onLogin} className="mt-7 space-y-3">
-            <SocialButton>
+            <SocialButton onClick={() => { window.location.href = `${API_URL}/api/v1/auth/google/start`; }}>
               <img src="https://www.google.com/favicon.ico" width={18} alt="" /> {t('auth.google')}
             </SocialButton>
             <SocialButton tone="line">
@@ -127,7 +127,7 @@ function LoginPageInner() {
           </form>
         ) : (
           <form onSubmit={onRegister} className="mt-7 space-y-3">
-            <SocialButton>
+            <SocialButton onClick={() => { window.location.href = `${API_URL}/api/v1/auth/google/start`; }}>
               <img src="https://www.google.com/favicon.ico" width={18} alt="" /> {t('auth.googleSignup')}
             </SocialButton>
             <Divider>{t('auth.dividerForm')}</Divider>
@@ -166,13 +166,16 @@ export default function LoginPage() {
 function SocialButton({
   children,
   tone = 'neutral',
+  onClick,
 }: {
   children: React.ReactNode;
   tone?: 'neutral' | 'line';
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className={cn(
         'flex w-full items-center justify-center gap-2.5 rounded-[10px] border px-4 py-3 text-sm font-semibold transition-colors',
         tone === 'line'
