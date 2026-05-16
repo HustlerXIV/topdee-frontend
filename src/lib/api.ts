@@ -311,9 +311,17 @@ export type BusinessHours = {
   updated_at?: string;
 };
 
+export type NotificationSettings = {
+  new_chat: boolean;
+  ai_cant_answer: boolean;
+  quota_warning: boolean;
+  daily_summary: boolean;
+};
+
 export type SettingsSnapshot = {
   account: AccountSettings;
   workspace: WorkspaceSettings;
+  notification: NotificationSettings;
 };
 
 export type AccountSettings = {
@@ -620,6 +628,11 @@ export const api = {
         body: fd,
       });
     },
+    updateNotifications: (prefs: NotificationSettings) =>
+      request<NotificationSettings>('/api/v1/settings/notifications', {
+        method: 'PATCH',
+        body: JSON.stringify(prefs),
+      }),
   },
 
   businessHours: {

@@ -39,7 +39,7 @@ const TABS: { id: Tab; labelKey: DictKey }[] = [
   { id: "workspace", labelKey: "settings.tab.workspace" },
   { id: "account", labelKey: "settings.tab.account" },
   { id: "notify", labelKey: "settings.tab.notify" },
-  { id: "api", labelKey: "settings.tab.api" },
+  // { id: "api", labelKey: "settings.tab.api" },
 ];
 
 export default function SettingsPage() {
@@ -60,6 +60,12 @@ export default function SettingsPage() {
   const [businessType, setBusinessType] = useState("ecommerce");
   const [logoUrl, setLogoUrl] = useState("");
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [notif, setNotif] = useState({
+    new_chat: true,
+    ai_cant_answer: true,
+    quota_warning: true,
+    daily_summary: false,
+  });
   const [accountName, setAccountName] = useState(user?.name || "");
   const [accountEmail, setAccountEmail] = useState(user?.email || "");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -77,6 +83,14 @@ export default function SettingsPage() {
         setWebsite(s.workspace.website || "");
         setBusinessType(s.workspace.business_type || "ecommerce");
         setLogoUrl(s.workspace.logo_url || "");
+        if (s.notification) {
+          setNotif({
+            new_chat: s.notification.new_chat,
+            ai_cant_answer: s.notification.ai_cant_answer,
+            quota_warning: s.notification.quota_warning,
+            daily_summary: s.notification.daily_summary,
+          });
+        }
         if (user) {
           setUser({
             ...user,
@@ -89,7 +103,10 @@ export default function SettingsPage() {
       })
       .catch((e) => {
         if (!(e instanceof ApiError && e.status === 401)) {
-          showToast(e instanceof Error ? e.message : "settings load failed", "error");
+          showToast(
+            e instanceof Error ? e.message : "settings load failed",
+            "error",
+          );
         }
       })
       .finally(() => setLoading(false));
@@ -152,9 +169,24 @@ export default function SettingsPage() {
       setConfirmPassword("");
       showToast("Password changed", "success");
     } catch (e) {
-      showToast(e instanceof ApiError ? e.message : "password change failed", "error");
+      showToast(
+        e instanceof ApiError ? e.message : "password change failed",
+        "error",
+      );
     } finally {
       setSavingPassword(false);
+    }
+  }
+
+  async function toggleNotif(key: keyof typeof notif, value: boolean) {
+    const next = { ...notif, [key]: value };
+    setNotif(next);
+    try {
+      await api.settings.updateNotifications(next);
+    } catch (e) {
+      // Roll back on failure
+      setNotif(notif);
+      showToast(e instanceof ApiError ? e.message : "save failed", "error");
     }
   }
 
@@ -167,7 +199,10 @@ export default function SettingsPage() {
       setLogoUrl(logo_url);
       showToast("โลโก้อัปโหลดแล้ว / Logo uploaded", "success");
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "upload failed", "error");
+      showToast(
+        err instanceof ApiError ? err.message : "upload failed",
+        "error",
+      );
     } finally {
       setUploadingLogo(false);
       // Reset input so the same file can be re-selected if needed.
@@ -204,13 +239,18 @@ export default function SettingsPage() {
         {tab === "workspace" && (
           <>
             <Card>
-              <CardHeader icon={<Building2 className="h-4 w-4" />} title={t("settings.workspace.section")} />
+              <CardHeader
+                icon={<Building2 className="h-4 w-4" />}
+                title={t("settings.workspace.section")}
+              />
               {/* Logo upload */}
               <div className="mb-5 flex items-center gap-4">
                 <label
                   className={cn(
                     "group relative flex h-[72px] w-[72px] flex-shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl transition-opacity",
-                    uploadingLogo ? "opacity-60 pointer-events-none" : "hover:opacity-80",
+                    uploadingLogo
+                      ? "opacity-60 pointer-events-none"
+                      : "hover:opacity-80",
                     logoUrl ? "bg-muted" : "bg-plan-gradient",
                   )}
                   title="Click to change logo"
@@ -237,8 +277,12 @@ export default function SettingsPage() {
                   />
                 </label>
                 <div>
-                  <div className="mb-1 text-sm font-semibold">โลโก้ร้าน / Logo</div>
-                  <div className="mb-2 text-xs text-ink-faint">JPEG, PNG หรือ WebP · สูงสุด 5 MB · แนะนำ 256×256 px</div>
+                  <div className="mb-1 text-sm font-semibold">
+                    โลโก้ร้าน / Logo
+                  </div>
+                  <div className="mb-2 text-xs text-ink-faint">
+                    JPEG, PNG หรือ WebP · สูงสุด 5 MB · แนะนำ 256×256 px
+                  </div>
                   <label
                     className={cn(
                       "inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line2 bg-card px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-muted",
@@ -246,7 +290,9 @@ export default function SettingsPage() {
                     )}
                   >
                     <Upload className="h-3.5 w-3.5" />
-                    {uploadingLogo ? "กำลังอัปโหลด…" : "เปลี่ยนโลโก้ / Change logo"}
+                    {uploadingLogo
+                      ? "กำลังอัปโหลด…"
+                      : "เปลี่ยนโลโก้ / Change logo"}
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
@@ -273,7 +319,9 @@ export default function SettingsPage() {
                   >
                     <option value="Asia/Bangkok">Asia/Bangkok (UTC+7)</option>
                     <option value="UTC">UTC</option>
-                    <option value="Asia/Singapore">Asia/Singapore (UTC+8)</option>
+                    <option value="Asia/Singapore">
+                      Asia/Singapore (UTC+8)
+                    </option>
                     <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
                   </Select>
                 </FormGroup>
@@ -306,7 +354,8 @@ export default function SettingsPage() {
                 onClick={saveWorkspace}
                 disabled={loading || savingWorkspace}
               >
-                <Save className="h-4 w-4" /> {savingWorkspace ? "…" : t("common.save")}
+                <Save className="h-4 w-4" />{" "}
+                {savingWorkspace ? "…" : t("common.save")}
               </Button>
             </Card>
 
@@ -317,12 +366,18 @@ export default function SettingsPage() {
         {tab === "account" && (
           <>
             <Card>
-              <CardHeader icon={<Palette className="h-4 w-4" />} title={t("settings.appearance.section")} />
+              <CardHeader
+                icon={<Palette className="h-4 w-4" />}
+                title={t("settings.appearance.section")}
+              />
               <PreferencesPanel />
             </Card>
 
             <Card>
-              <CardHeader icon={<User className="h-4 w-4" />} title={t("settings.account.section")} />
+              <CardHeader
+                icon={<User className="h-4 w-4" />}
+                title={t("settings.account.section")}
+              />
               <div className="mb-5 flex items-center gap-4">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-2xl font-bold text-brand-600">
                   {(user?.email || "U").slice(0, 1).toUpperCase()}
@@ -345,16 +400,17 @@ export default function SettingsPage() {
                   />
                 </FormGroup>
               </FormRow>
-              <Button
-                onClick={saveAccount}
-                disabled={loading || savingAccount}
-              >
-                <Save className="h-4 w-4" /> {savingAccount ? "…" : t("common.save")}
+              <Button onClick={saveAccount} disabled={loading || savingAccount}>
+                <Save className="h-4 w-4" />{" "}
+                {savingAccount ? "…" : t("common.save")}
               </Button>
             </Card>
 
             <Card>
-              <CardHeader icon={<Lock className="h-4 w-4" />} title={t("settings.password.section")} />
+              <CardHeader
+                icon={<Lock className="h-4 w-4" />}
+                title={t("settings.password.section")}
+              />
               <FormGroup label="Current password" className="mb-4">
                 <Input
                   type="password"
@@ -395,7 +451,10 @@ export default function SettingsPage() {
             </Card>
 
             <Card>
-              <CardHeader icon={<LogOut className="h-4 w-4" />} title={t("settings.logout.section")} />
+              <CardHeader
+                icon={<LogOut className="h-4 w-4" />}
+                title={t("settings.logout.section")}
+              />
               <p className="mb-3 text-sm text-ink-muted">
                 {t("settings.logout.desc")}
               </p>
@@ -414,27 +473,39 @@ export default function SettingsPage() {
 
         {tab === "notify" && (
           <Card>
-            <CardHeader icon={<Bell className="h-4 w-4" />} title={t("settings.notify.section")} />
+            <CardHeader
+              icon={<Bell className="h-4 w-4" />}
+              title={t("settings.notify.section")}
+            />
+            <p className="mb-4 text-sm text-ink-muted">
+              These preferences apply only to <strong>your account</strong>.
+              Each team member can configure their own.
+            </p>
             <div className="space-y-4">
               <NotifyRow
                 title="New chat received"
-                desc="Notify on every new customer message"
-                defaultChecked
+                desc="Notify when a new customer conversation starts"
+                checked={notif.new_chat}
+                onChange={(v) => toggleNotif("new_chat", v)}
               />
               <NotifyRow
                 title="AI couldn't answer"
-                desc="Notify when AI requests a human"
-                defaultChecked
-              />
-              <NotifyRow
-                title="Daily summary"
-                desc="Get a daily volume + performance digest"
+                desc="Notify when AI flags a conversation for human handoff"
+                checked={notif.ai_cant_answer}
+                onChange={(v) => toggleNotif("ai_cant_answer", v)}
               />
               <NotifyRow
                 title="Quota warning"
-                desc="Warn when usage exceeds 80%"
-                defaultChecked
+                desc="Warn when monthly AI usage exceeds 80% (Owner only)"
+                checked={notif.quota_warning}
+                onChange={(v) => toggleNotif("quota_warning", v)}
               />
+              {/* <NotifyRow
+                title="Daily summary"
+                desc="Get a daily volume + performance digest"
+                checked={notif.daily_summary}
+                onChange={(v) => toggleNotif("daily_summary", v)}
+              /> */}
             </div>
           </Card>
         )}
@@ -475,7 +546,10 @@ export default function SettingsPage() {
               <Button variant="outline" iconLeft={<Plus className="h-4 w-4" />}>
                 New key
               </Button>
-              <Button variant="danger" iconLeft={<Trash2 className="h-4 w-4" />}>
+              <Button
+                variant="danger"
+                iconLeft={<Trash2 className="h-4 w-4" />}
+              >
                 Revoke
               </Button>
             </div>
@@ -489,11 +563,13 @@ export default function SettingsPage() {
 function NotifyRow({
   title,
   desc,
-  defaultChecked,
+  checked,
+  onChange,
 }: {
   title: string;
   desc: string;
-  defaultChecked?: boolean;
+  checked: boolean;
+  onChange: (v: boolean) => void;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-[10px] bg-page p-4">
@@ -501,7 +577,7 @@ function NotifyRow({
         <div className="text-sm font-semibold">{title}</div>
         <div className="text-xs text-ink-faint">{desc}</div>
       </div>
-      <Toggle defaultChecked={defaultChecked} />
+      <Toggle checked={checked} onChange={(e) => onChange(e.target.checked)} />
     </div>
   );
 }
