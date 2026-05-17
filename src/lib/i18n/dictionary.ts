@@ -112,6 +112,18 @@ export const dictionary = {
     th: "การสมัครถือว่ายอมรับ",
     en: "By signing up you agree to our",
   },
+  "auth.privacyConsentPrefix": {
+    th: "ฉันอ่านและยอมรับ",
+    en: "I have read and accepted the",
+  },
+  "auth.privacyConsentSuffix": {
+    th: "แล้ว",
+    en: "",
+  },
+  "auth.privacyPolicy": {
+    th: "นโยบายความเป็นส่วนตัว",
+    en: "Privacy Policy",
+  },
 
   // ── Onboarding ────────────────────────────────────────
   "onboarding.step.account": { th: "บัญชี", en: "Account" },

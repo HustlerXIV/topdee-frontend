@@ -26,6 +26,7 @@ function LoginPageInner() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [tenantName, setTenantName] = useState("");
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function onLogin(e: React.FormEvent) {
@@ -174,7 +175,28 @@ function LoginPageInner() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <Button type="submit" fullWidth size="lg" disabled={busy}>
+            {/* Privacy Policy checkbox — required before submitting */}
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-line2 bg-muted px-3 py-2.5">
+              <input
+                type="checkbox"
+                required
+                checked={acceptedPrivacy}
+                onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-indigo-600"
+              />
+              <span className="text-[13px] leading-snug text-ink-muted">
+                {t('auth.privacyConsentPrefix')}{' '}
+                <Link
+                  href="/privacy"
+                  target="_blank"
+                  className="font-semibold text-brand-600 hover:underline"
+                >
+                  {t('auth.privacyPolicy')}
+                </Link>
+                {t('auth.privacyConsentSuffix') ? ` ${t('auth.privacyConsentSuffix')}` : ''}
+              </span>
+            </label>
+            <Button type="submit" fullWidth size="lg" disabled={busy || !acceptedPrivacy}>
               {busy ? t("auth.signupBusy") : t("auth.signupBtn")}
             </Button>
             <p className="pt-1 text-center text-[13px] text-ink-muted">
@@ -185,11 +207,6 @@ function LoginPageInner() {
               >
                 {t("auth.tab.login")}
               </a>
-            </p>
-            <p className="text-center text-xs text-ink-faint">
-              {t("auth.terms")}{" "}
-              <a className="cursor-pointer text-brand-600">Terms</a> &{" "}
-              <a className="cursor-pointer text-brand-600">Privacy</a>
             </p>
           </form>
         )}

@@ -411,7 +411,7 @@ export const api = {
   register: (tenant_name: string, email: string, password: string) =>
     request<{ token: string; user: AuthUser }>('/api/v1/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ tenant_name, email, password }),
+      body: JSON.stringify({ tenant_name, email, password, accepted_privacy: true }),
     }),
 
   login: (email: string, password: string) =>
