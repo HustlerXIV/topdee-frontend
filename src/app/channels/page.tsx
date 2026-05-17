@@ -234,9 +234,10 @@ function ProviderSection({
   const atLimit = used >= limit;
   return (
     <section>
-      <div className="mb-3 flex items-center justify-between">
+      {/* Header — wraps on very small screens so the button never gets squished */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', spec.bg, spec.fg)}>
+          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', spec.bg, spec.fg)}>
             <Logo className="h-5 w-5" />
           </div>
           <div>
@@ -251,6 +252,7 @@ function ProviderSection({
           variant={atLimit ? 'outline' : 'primary'}
           onClick={onConnect}
           disabled={connectBusy}
+          className="shrink-0"
         >
           {connectBusy ? '…' : `+ ${t('common.connect')}`}
         </Button>
@@ -261,7 +263,7 @@ function ProviderSection({
           {t('common.notConnected')}
         </div>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {connections.map((c) => (
             <ConnectionCard key={c.id} conn={c} onDisconnect={() => onDisconnect(c)} />
           ))}
@@ -286,15 +288,16 @@ function ConnectionCard({
   // to re-run the connect flow.
   const showWebhook = conn.provider === 'line' && !!conn.webhook_url;
   return (
-    <div className="rounded-2xl border border-line2 bg-card p-4 transition-shadow hover:shadow-card-hover">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+    <div className="flex flex-col rounded-2xl border border-line2 bg-card p-4 transition-shadow hover:shadow-card-hover">
+      {/* Name + status badge — wraps on very narrow cards */}
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-bold text-ink">{conn.display_name || conn.external_id}</h3>
           <p className="mt-0.5 truncate text-[11px] text-ink-faint">{conn.external_id}</p>
         </div>
         <span
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold',
+            'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold',
             ok
               ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
               : 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300',
@@ -309,7 +312,7 @@ function ConnectionCard({
         <div className="mt-3">
           <div className="mb-1 text-[11px] font-medium text-ink-faint">Webhook URL</div>
           <div className="flex items-stretch gap-2">
-            <code className="flex-1 truncate rounded-md border border-line2 bg-page px-2 py-1.5 text-[11px] text-ink">
+            <code className="min-w-0 flex-1 truncate rounded-md border border-line2 bg-page px-2 py-1.5 text-[11px] text-ink">
               {conn.webhook_url}
             </code>
             <button
@@ -320,14 +323,15 @@ function ConnectionCard({
                   () => showToast('Copy failed', 'default'),
                 )
               }
-              className="rounded-md border border-line2 px-2 py-1 text-[11px] font-bold text-brand-600 hover:bg-brand-soft/40"
+              className="shrink-0 rounded-md border border-line2 px-2 py-1 text-[11px] font-bold text-brand-600 hover:bg-brand-soft/40"
             >
               Copy
             </button>
           </div>
         </div>
       )}
-      <div className="mt-3">
+      {/* Push disconnect button to the bottom of the card */}
+      <div className="mt-auto pt-3">
         <Button size="sm" variant="danger" fullWidth onClick={onDisconnect}>
           {t('common.disconnect')}
         </Button>
