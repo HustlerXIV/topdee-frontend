@@ -55,7 +55,6 @@ export default function SettingsPage() {
   const [savingAccount, setSavingAccount] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [workspaceName, setWorkspaceName] = useState(user?.workspace || "");
-  const [timezone, setTimezone] = useState("Asia/Bangkok");
   const [website, setWebsite] = useState("");
   const [businessType, setBusinessType] = useState("ecommerce");
   const [logoUrl, setLogoUrl] = useState("");
@@ -79,7 +78,6 @@ export default function SettingsPage() {
         setAccountName(s.account.name || "");
         setAccountEmail(s.account.email || "");
         setWorkspaceName(s.workspace.name || "");
-        setTimezone(s.workspace.timezone || "Asia/Bangkok");
         setWebsite(s.workspace.website || "");
         setBusinessType(s.workspace.business_type || "ecommerce");
         setLogoUrl(s.workspace.logo_url || "");
@@ -118,12 +116,10 @@ export default function SettingsPage() {
     try {
       const saved = await api.settings.updateWorkspace({
         name: workspaceName.trim(),
-        timezone,
         website: website.trim(),
         business_type: businessType,
       });
       setWorkspaceName(saved.name);
-      setTimezone(saved.timezone);
       setWebsite(saved.website || "");
       setBusinessType(saved.business_type || "ecommerce");
       if (user) setUser({ ...user, workspace: saved.name });
@@ -310,20 +306,6 @@ export default function SettingsPage() {
                     onChange={(e) => setWorkspaceName(e.target.value)}
                     disabled={loading}
                   />
-                </FormGroup>
-                <FormGroup label="Timezone">
-                  <Select
-                    value={timezone}
-                    onChange={(e) => setTimezone(e.target.value)}
-                    disabled={loading}
-                  >
-                    <option value="Asia/Bangkok">Asia/Bangkok (UTC+7)</option>
-                    <option value="UTC">UTC</option>
-                    <option value="Asia/Singapore">
-                      Asia/Singapore (UTC+8)
-                    </option>
-                    <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
-                  </Select>
                 </FormGroup>
               </FormRow>
               <FormRow>

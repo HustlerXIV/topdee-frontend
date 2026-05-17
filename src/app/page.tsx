@@ -127,21 +127,27 @@ export default function HomePage() {
   return (
     <main className="page-enter bg-page text-ink">
       {/* Top nav */}
-      <nav className="sticky top-0 z-30 flex items-center gap-2 border-b border-line2 bg-card px-6 py-3">
+      <nav className="sticky top-0 z-30 flex items-center gap-2 border-b border-line2 bg-card px-4 py-2.5 md:px-6 md:py-3">
         <Link
           href="/"
           className="mr-auto text-lg font-extrabold tracking-tight text-brand-600"
         >
           Top<span className="text-ink">Dee</span>
         </Link>
-        <CompactPreferences />
-        <Link href="/login">
+
+        {/* Language + theme — no extra padding on mobile */}
+        <CompactPreferences className="px-0 py-0" />
+
+        {/* Login — hidden on mobile to keep the nav clean.
+            The signup page lets users switch to login from there. */}
+        <Link href="/login" className="hidden sm:block">
           <Button variant="outline" size="sm">
             {t("landing.signin")}
           </Button>
         </Link>
+
         <Link href="/login?tab=register">
-          <Button variant="primary" size="sm">
+          <Button variant="primary" size="sm" className="whitespace-nowrap">
             {t("landing.signup")}
           </Button>
         </Link>

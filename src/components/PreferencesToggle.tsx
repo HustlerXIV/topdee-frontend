@@ -14,7 +14,7 @@ export function CompactPreferences({ className }: { className?: string }) {
   const { locale, theme, setLocale, toggleTheme } = usePreferences();
 
   return (
-    <div className={cn('flex items-center gap-2 px-2 py-2', className)}>
+    <div className={cn('flex items-center gap-1.5 px-2 py-2', className)}>
       <Segmented
         options={[
           { value: 'th', label: 'TH' },
@@ -28,7 +28,7 @@ export function CompactPreferences({ className }: { className?: string }) {
         type="button"
         onClick={toggleTheme}
         title={t('settings.appearance.theme')}
-        className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg border border-line2 bg-card text-ink-muted transition-colors hover:bg-muted"
+        className="flex h-7 w-7 items-center justify-center rounded-lg border border-line2 bg-card text-ink-muted transition-colors hover:bg-muted md:h-8 md:w-8"
         aria-label={t('settings.appearance.theme')}
       >
         {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -114,7 +114,7 @@ function Segmented({
             aria-checked={active}
             onClick={() => onChange(opt.value)}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-semibold transition-colors',
+              'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[12px] font-semibold transition-colors md:px-3 md:py-1.5 md:text-[13px]',
               active
                 ? 'bg-brand-soft text-brand-600'
                 : 'text-ink-muted hover:text-ink',

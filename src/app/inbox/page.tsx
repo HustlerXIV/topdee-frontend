@@ -280,6 +280,15 @@ function ChatArea({
     string | null
   >(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea: grow with content up to ~3 lines, then scroll.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 96) + "px";
+  }, [draft]);
   const visibleMessages = conv.messages.filter(
     (m) => m.author !== "suggestion",
   );
@@ -323,15 +332,17 @@ function ChatArea({
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex items-center gap-3 border-b border-line2 bg-card px-5 py-3.5">
+      <header className="flex items-center gap-2.5 border-b border-line2 bg-card px-3 py-3 md:gap-3 md:px-5 md:py-3.5">
         <Avatar
           initials={conv.initials}
           tone={conv.avatarTone}
           size="md"
           badge={<ChannelDot channel={conv.channel} />}
         />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
+        {/* Name block — flex-1 + min-w-0 ensures it shrinks and truncates
+            correctly instead of pushing the action button off-screen. */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
             <h4 className="truncate text-[15px] font-semibold text-ink">
               {conv.customerName}
             </h4>
@@ -342,25 +353,18 @@ function ChatArea({
             {conv.online ? t("common.online") : t("common.offline")}
           </p>
         </div>
-        <div className="ml-auto flex gap-2">
-          {/* <IconButton title={t("inbox.action.history")} Icon={User} />
-          <IconButton title={t("inbox.action.tag")} Icon={Tag} />
-          <IconButton title={t("inbox.action.transfer")} Icon={Share2} /> */}
+        <div className="flex shrink-0 gap-2">
           {conv.needsHuman && (
             <button
               onClick={onResolveHandoff}
               title={t("inbox.handoff.resolve")}
-              className="flex items-center gap-1.5 rounded-[10px] border border-orange-300 bg-orange-50 px-3 py-1.5 text-[12px] font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-700 dark:bg-orange-950/30 dark:text-orange-300"
+              className="flex items-center gap-1.5 rounded-[10px] border border-orange-300 bg-orange-50 px-2 py-1.5 text-[12px] font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-700 dark:bg-orange-950/30 dark:text-orange-300 md:px-3"
             >
-              <UserCheck className="h-3.5 w-3.5" />
-              {t("inbox.handoff.resolve")}
+              <UserCheck className="h-3.5 w-3.5 shrink-0" />
+              {/* Hide label on mobile — icon is enough */}
+              <span className="hidden md:inline">{t("inbox.handoff.resolve")}</span>
             </button>
           )}
-          {/* <IconButton
-            title={t("inbox.action.close")}
-            Icon={Check}
-            tone="danger"
-          /> */}
         </div>
       </header>
 
@@ -476,8 +480,9 @@ function ChatArea({
       )}
 
       {/* Input */}
-      <div className="flex items-end gap-2.5 border-t border-line2 bg-card px-5 py-3.5">
+      <div className="flex items-end gap-2 border-t border-line2 bg-card px-3 py-3 md:gap-2.5 md:px-5 md:py-3.5">
         <textarea
+          ref={textareaRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -486,12 +491,13 @@ function ChatArea({
               send();
             }
           }}
-          rows={1}
+          rows={2}
           placeholder={t("inbox.input.placeholder")}
-          className="max-h-24 flex-1 resize-none rounded-2xl border border-line2 bg-card px-4 py-2.5 text-sm leading-relaxed text-ink outline-none placeholder:text-ink-faint focus:border-brand-600"
+          className="flex-1 resize-none overflow-y-auto rounded-2xl border border-line2 bg-page px-4 py-2.5 text-sm leading-relaxed text-ink outline-none placeholder:text-ink-faint focus:border-brand-600"
+          style={{ minHeight: "2.75rem", maxHeight: "6rem" }}
         />
         <Button onClick={send} iconRight={<SendIcon className="h-4 w-4" />}>
-          {t("common.send")}
+          <span className="hidden sm:inline">{t("common.send")}</span>
         </Button>
       </div>
 
