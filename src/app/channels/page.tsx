@@ -13,7 +13,7 @@
 //   • DELETE  — disconnect by connection id
 
 import { useEffect, useMemo, useState } from 'react';
-import { AppShell, PageBody, PageHeader } from '@/components/layout/AppShell';
+import { AppShell, PageBody, PageHeader, useRoleGuard } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { FormGroup, FormRow, Input } from '@/components/ui/Input';
@@ -61,6 +61,7 @@ const PROVIDERS: ProviderSpec[] = [
 ];
 
 export default function ChannelsPage() {
+  useRoleGuard(['owner', 'admin']);
   const t = useT();
   const showToast = useUI((s) => s.showToast);
 

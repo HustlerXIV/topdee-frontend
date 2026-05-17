@@ -9,20 +9,22 @@ import { type DictKey } from '@/lib/i18n/dictionary';
 import { Icon, type IconName, Shield, Menu, X } from '@/components/ui/Icon';
 import { UserMenu } from './UserMenu';
 import { CompactPreferences } from '@/components/PreferencesToggle';
-import { useAuth } from '@/store/auth';
+import { useAuth, type Role } from '@/store/auth';
 import { useInboxBadge } from '@/store/inbox-badge';
 
-const primary: { href: string; icon: IconName; labelKey: DictKey }[] = [
-  { href: '/inbox', icon: 'inbox', labelKey: 'nav.inbox' },
-  { href: '/bot', icon: 'bot', labelKey: 'nav.bot' },
+type NavItem = { href: string; icon: IconName; labelKey: DictKey; roles?: Role[] };
+
+const primary: NavItem[] = [
+  { href: '/inbox',     icon: 'inbox',     labelKey: 'nav.inbox' },
+  { href: '/bot',       icon: 'bot',       labelKey: 'nav.bot' },
   { href: '/knowledge', icon: 'knowledge', labelKey: 'nav.knowledge' },
   { href: '/analytics', icon: 'analytics', labelKey: 'nav.analytics' },
-  { href: '/channels', icon: 'channels', labelKey: 'nav.channels' },
+  { href: '/channels',  icon: 'channels',  labelKey: 'nav.channels', roles: ['owner', 'admin'] },
 ];
 
-const secondary: { href: string; icon: IconName; labelKey: DictKey }[] = [
-  { href: '/team', icon: 'team', labelKey: 'nav.team' },
-  { href: '/billing', icon: 'billing', labelKey: 'nav.billing' },
+const secondary: NavItem[] = [
+  { href: '/team',     icon: 'team',     labelKey: 'nav.team',    roles: ['owner', 'admin'] },
+  { href: '/billing',  icon: 'billing',  labelKey: 'nav.billing', roles: ['owner'] },
   { href: '/settings', icon: 'settings', labelKey: 'nav.settings' },
 ];
 
@@ -35,8 +37,11 @@ export function MobileNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname() ?? '';
   const t = useT();
-  const isAdmin = useAuth((s) => s.user?.isAdmin);
+  const { isAdmin, role } = useAuth((s) => ({ isAdmin: s.user?.isAdmin, role: s.user?.role ?? '' }));
   const unreadCount = useInboxBadge((s) => s.count);
+
+  const canSee = (item: NavItem) =>
+    !item.roles || item.roles.includes(role as Role);
 
   // Lock body scroll while menu is open
   useEffect(() => {
@@ -94,7 +99,7 @@ export function MobileNav() {
 
           {/* Nav items */}
           <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-            {primary.map((it) => (
+            {primary.filter(canSee).map((it) => (
               <Link
                 key={it.href}
                 href={it.href}
@@ -118,7 +123,7 @@ export function MobileNav() {
 
             <div className="my-2 h-px bg-line2" />
 
-            {secondary.map((it) => (
+            {secondary.filter(canSee).map((it) => (
               <Link
                 key={it.href}
                 href={it.href}

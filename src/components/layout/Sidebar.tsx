@@ -8,34 +8,39 @@ import { type DictKey } from '@/lib/i18n/dictionary';
 import { CompactPreferences } from '@/components/PreferencesToggle';
 import { UserMenu } from './UserMenu';
 import { Icon, type IconName, Shield } from '@/components/ui/Icon';
-import { useAuth } from '@/store/auth';
+import { useAuth, type Role } from '@/store/auth';
 import { useInboxBadge } from '@/store/inbox-badge';
 
 type Item = {
   href: string;
   icon: IconName;
   labelKey: DictKey;
+  /** Roles that can see this item. Omit to show to everyone. */
+  roles?: Role[];
 };
 
 const primary: Item[] = [
-  { href: '/inbox', icon: 'inbox', labelKey: 'nav.inbox' },
-  { href: '/bot', icon: 'bot', labelKey: 'nav.bot' },
+  { href: '/inbox',     icon: 'inbox',     labelKey: 'nav.inbox' },
+  { href: '/bot',       icon: 'bot',       labelKey: 'nav.bot' },
   { href: '/knowledge', icon: 'knowledge', labelKey: 'nav.knowledge' },
   { href: '/analytics', icon: 'analytics', labelKey: 'nav.analytics' },
-  { href: '/channels', icon: 'channels', labelKey: 'nav.channels' },
+  { href: '/channels',  icon: 'channels',  labelKey: 'nav.channels', roles: ['owner', 'admin'] },
 ];
 
 const secondary: Item[] = [
-  { href: '/team', icon: 'team', labelKey: 'nav.team' },
-  { href: '/billing', icon: 'billing', labelKey: 'nav.billing' },
+  { href: '/team',     icon: 'team',     labelKey: 'nav.team',    roles: ['owner', 'admin'] },
+  { href: '/billing',  icon: 'billing',  labelKey: 'nav.billing', roles: ['owner'] },
   { href: '/settings', icon: 'settings', labelKey: 'nav.settings' },
 ];
 
 export function Sidebar() {
   const pathname = usePathname() ?? '';
   const t = useT();
-  const isAdmin = useAuth((s) => s.user?.isAdmin);
+  const { isAdmin, role } = useAuth((s) => ({ isAdmin: s.user?.isAdmin, role: s.user?.role ?? '' }));
   const unreadCount = useInboxBadge((s) => s.count);
+
+  const canSee = (item: Item) =>
+    !item.roles || item.roles.includes(role as Role);
 
   return (
     <aside className="hidden h-screen w-[220px] flex-col border-r border-line2 bg-card md:flex">
@@ -47,7 +52,7 @@ export function Sidebar() {
           TopDee
         </Link>
 
-        {primary.map((it) => (
+        {primary.filter(canSee).map((it) => (
           <SidebarItem
             key={it.href}
             item={it}
@@ -59,7 +64,7 @@ export function Sidebar() {
 
         <div className="my-2 h-px bg-line2" />
 
-        {secondary.map((it) => (
+        {secondary.filter(canSee).map((it) => (
           <SidebarItem
             key={it.href}
             item={it}

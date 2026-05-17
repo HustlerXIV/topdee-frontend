@@ -5,9 +5,26 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
 import { ToastViewport } from "@/components/ui/Toast";
-import { useAuth } from "@/store/auth";
+import { useAuth, type Role } from "@/store/auth";
 import { useInboxBadge } from "@/store/inbox-badge";
 import { cn } from "@/lib/cn";
+
+/**
+ * Role guard hook — redirects to /inbox when the current user's role is not
+ * in `allowedRoles`. Call this at the top of any page that should be
+ * restricted (e.g. channels, billing, team).
+ */
+export function useRoleGuard(allowedRoles: Role[]) {
+  const router = useRouter();
+  const { user, hydrated } = useAuth();
+  useEffect(() => {
+    if (!hydrated) return;
+    const role = user?.role ?? '';
+    if (role && !allowedRoles.includes(role)) {
+      router.replace('/inbox');
+    }
+  }, [hydrated, user, router, allowedRoles]);
+}
 
 /**
  * Wraps the dashboard pages: sidebar (desktop) + main content + bottom nav (mobile).

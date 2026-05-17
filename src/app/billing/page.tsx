@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppShell, PageBody, PageHeader } from "@/components/layout/AppShell";
+import { AppShell, PageBody, PageHeader, useRoleGuard } from "@/components/layout/AppShell";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -173,6 +173,7 @@ function brandBg(brand: string) {
 // ── component ─────────────────────────────────────────────────────────
 
 export default function BillingPage() {
+  useRoleGuard(['owner']);
   const t = useT();
   const showToast = useUI((s) => s.showToast);
 
