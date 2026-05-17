@@ -645,7 +645,7 @@ export const api = {
       }),
     updateWorkspace: (input: {
       name: string;
-      timezone: string;
+      timezone?: string;
       website: string;
       business_type: string;
     }) =>
