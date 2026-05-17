@@ -335,7 +335,7 @@ function ChatArea({
             <h4 className="truncate text-[15px] font-semibold text-ink">
               {conv.customerName}
             </h4>
-            <ChannelPill channel={conv.channel} />
+            <ChannelPill channel={conv.channel} label={conv.channelName} />
           </div>
           <p className="mt-0.5 text-xs text-ink-faint">
             <span className="text-emerald-500">●</span>{" "}
@@ -652,7 +652,15 @@ function channelLabel(c: "line" | "fb" | "ig" | "web") {
 // name in the chat header. Makes it impossible to miss which platform
 // you're replying on (LINE pricing, FB Messenger, etc. behave differently
 // so it's worth keeping front-of-mind).
-function ChannelPill({ channel }: { channel: "line" | "fb" | "ig" | "web" }) {
+// Pass `label` to override the default generic name with the real channel
+// name (e.g. "ChannelA" instead of "LINE OA").
+function ChannelPill({
+  channel,
+  label,
+}: {
+  channel: "line" | "fb" | "ig" | "web";
+  label?: string;
+}) {
   const map = {
     line: {
       label: "LINE OA",
@@ -681,7 +689,7 @@ function ChannelPill({ channel }: { channel: "line" | "fb" | "ig" | "web" }) {
         m.classes,
       )}
     >
-      {m.label}
+      {label ?? m.label}
     </span>
   );
 }

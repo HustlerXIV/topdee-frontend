@@ -5,7 +5,7 @@
  * here so re-selecting is instant.
  */
 import { create } from 'zustand';
-import { api, ApiError, type InboxConversation, type Message, type MessageAttachment } from '@/lib/api';
+import { api, ApiError, type InboxConversation, type Message, type MessageAttachment, type ChannelConnection } from '@/lib/api';
 
 export type Channel = 'line' | 'fb' | 'ig' | 'web';
 export type ConvKind = 'ai' | 'team';
@@ -27,6 +27,9 @@ export type Conversation = {
   initials: string;
   avatarTone: 'purple' | 'blue' | 'pink' | 'yellow' | 'green' | 'gray';
   channel: Channel;
+  /** Real display name of the connected channel (e.g. "ChannelA"). Falls back
+   * to the generic provider label ("LINE OA") when no match is found. */
+  channelName: string;
   preview: string;
   time: string;
   unread: number;
@@ -43,6 +46,8 @@ type ConvFilter = 'all' | 'ai' | 'team';
 
 type State = {
   conversations: Conversation[];
+  /** Cached channel connections used to resolve real channel display names. */
+  connections: ChannelConnection[];
   selectedId: string | null;
   filter: ConvFilter;
   search: string;
@@ -132,21 +137,42 @@ function kindFor(role: InboxConversation['last_sender_role'], needsHuman: boolea
   return role === 'human' || role === 'suggestion' || role === 'user' ? 'team' : 'ai';
 }
 
-function fromApiList(rows: InboxConversation[]): Conversation[] {
-  return rows.map((r) => ({
-    id: r.id,
-    customerName: r.customer_name,
-    initials: initialsFor(r.customer_name),
-    avatarTone: toneFor(customerKey(r)),
-    channel: CHANNEL_FROM_API[r.channel] ?? 'web',
-    preview: r.preview,
-    time: relativeTime(r.last_message_at),
-    unread: 0, // no read-tracking yet on the backend
-    kind: kindFor(r.last_sender_role, r.needs_human),
-    needsHuman: r.needs_human ?? false,
-    messages: [],
-    loaded: false,
-  }));
+/** Default label for a channel when no specific connection name is found. */
+const DEFAULT_CHANNEL_LABEL: Record<Channel, string> = {
+  line: 'LINE OA',
+  fb: 'Facebook',
+  ig: 'Instagram',
+  web: 'Webchat',
+};
+
+function fromApiList(
+  rows: InboxConversation[],
+  /** Map of channel connection external_id → display_name, for resolving real names. */
+  connByExtId: Record<string, string> = {},
+): Conversation[] {
+  return rows.map((r) => {
+    const channel = CHANNEL_FROM_API[r.channel] ?? 'web';
+    // Conversation IDs are formatted as "{provider}:{externalChannelId}:{userId}".
+    // Parse the middle segment to look up the specific channel connection name.
+    const parts = r.id.split(':');
+    const externalChannelId = parts.length >= 3 ? parts[1] : '';
+    const channelName = connByExtId[externalChannelId] ?? DEFAULT_CHANNEL_LABEL[channel];
+    return {
+      id: r.id,
+      customerName: r.customer_name,
+      initials: initialsFor(r.customer_name),
+      avatarTone: toneFor(customerKey(r)),
+      channel,
+      channelName,
+      preview: r.preview,
+      time: relativeTime(r.last_message_at),
+      unread: 0, // no read-tracking yet on the backend
+      kind: kindFor(r.last_sender_role, r.needs_human),
+      needsHuman: r.needs_human ?? false,
+      messages: [],
+      loaded: false,
+    };
+  });
 }
 
 /** Format a server timestamp as a short hh:mm — used for individual
@@ -186,6 +212,7 @@ function fromApiMessages(msgs: Message[]): ConvMessage[] {
 
 export const useConversations = create<State>((set, get) => ({
   conversations: [],
+  connections: [],
   selectedId: null,
   filter: 'all',
   search: '',
@@ -213,8 +240,23 @@ export const useConversations = create<State>((set, get) => ({
   refresh: async () => {
     set({ loading: true, error: null });
     try {
-      const rows = await api.inbox.list();
-      const fresh = fromApiList(rows);
+      // Load conversations and channel connections concurrently. Connections
+      // are used to resolve the real display name for each channel (e.g.
+      // "ChannelA" instead of the generic "LINE OA").
+      const [rows, channelsResp] = await Promise.all([
+        api.inbox.list(),
+        api.channels.list().catch(() => ({ connections: [] as ChannelConnection[], limits: {}, used: {} })),
+      ]);
+
+      // Build a lookup map: external_id → display_name
+      const connByExtId: Record<string, string> = {};
+      for (const conn of channelsResp.connections) {
+        if (conn.display_name && conn.external_id) {
+          connByExtId[conn.external_id] = conn.display_name;
+        }
+      }
+
+      const fresh = fromApiList(rows, connByExtId);
       // Preserve already-loaded messages across refreshes — only the
       // metadata (preview, time, unread) changes. Match by id.
       set((s) => {
@@ -228,6 +270,7 @@ export const useConversations = create<State>((set, get) => ({
         });
         return {
           conversations: merged,
+          connections: channelsResp.connections,
           selectedId: s.selectedId ?? merged[0]?.id ?? null,
           loading: false,
         };
