@@ -274,6 +274,11 @@ function ChatArea({
     src: string;
     alt: string;
   } | null>(null);
+  // Track which suggestion the team has already acted on so the banner
+  // disappears immediately — without waiting for the next poll cycle.
+  const [dismissedSuggestionId, setDismissedSuggestionId] = useState<
+    string | null
+  >(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const visibleMessages = conv.messages.filter(
     (m) => m.author !== "suggestion",
@@ -281,6 +286,26 @@ function ChatArea({
   const latestSuggestion = [...conv.messages]
     .reverse()
     .find((m) => m.author === "suggestion");
+
+  // Server-side truth: hide the banner if an agent message already exists
+  // after the suggestion (handles the polling-refetch case).
+  const latestSuggestionIdx = latestSuggestion
+    ? conv.messages.findIndex((m) => m.id === latestSuggestion.id)
+    : -1;
+  const agentRepliedAfterSuggestion =
+    latestSuggestionIdx !== -1 &&
+    conv.messages
+      .slice(latestSuggestionIdx + 1)
+      .some((m) => m.author === "agent");
+  const showSuggestionBanner =
+    !!latestSuggestion &&
+    latestSuggestion.id !== dismissedSuggestionId &&
+    !agentRepliedAfterSuggestion;
+
+  // Reset local dismiss state when switching to a different conversation.
+  useEffect(() => {
+    setDismissedSuggestionId(null);
+  }, [conv.id]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
@@ -291,6 +316,8 @@ function ChatArea({
     if (!text) return;
     onSend(text);
     setDraft("");
+    // Dismiss the suggestion banner immediately when the team sends any reply.
+    if (latestSuggestion) setDismissedSuggestionId(latestSuggestion.id);
   }
 
   return (
@@ -385,7 +412,7 @@ function ChatArea({
                   m.author === "ai"
                     ? "AI"
                     : m.author === "agent"
-                      ? agentInitial
+                      ? (m.senderName?.[0]?.toUpperCase() ?? agentInitial)
                       : conv.initials
                 }
               />
@@ -419,7 +446,7 @@ function ChatArea({
                   )}
                 >
                   {m.time}
-                  {m.author === "agent" && ` · ${agentName}`}
+                  {m.author === "agent" && ` · ${m.senderName ?? agentName}`}
                   {m.author === "ai" && " · AI ✓✓"}
                 </div>
               </div>
@@ -428,7 +455,7 @@ function ChatArea({
         </div>
       </div>
 
-      {latestSuggestion && (
+      {showSuggestionBanner && (
         <div className="mx-5 mb-3 flex items-center gap-2.5 rounded-2xl border border-brand-300 bg-brand-soft px-4 py-3 text-[13px] text-brand-700 dark:text-brand-200">
           <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0" />
           <span>
@@ -438,7 +465,10 @@ function ChatArea({
           <Button
             size="sm"
             className="ml-auto whitespace-nowrap"
-            onClick={() => setDraft(latestSuggestion.text)}
+            onClick={() => {
+              setDraft(latestSuggestion.text);
+              setDismissedSuggestionId(latestSuggestion.id);
+            }}
           >
             {t("inbox.aiSuggestion.use")}
           </Button>

@@ -17,6 +17,8 @@ export type ConvMessage = {
   text: string;
   attachments: MessageAttachment[];
   time: string; // already formatted for display
+  /** Display name of the team member who sent this message (role=human only). */
+  senderName?: string;
 };
 
 export type Conversation = {
@@ -175,6 +177,7 @@ function fromApiMessages(msgs: Message[]): ConvMessage[] {
       text: m.content,
       attachments: m.attachments ?? [],
       time: shortTime(m.created_at),
+      senderName: m.sender_name,
     };
   });
 }
@@ -314,10 +317,11 @@ export const useConversations = create<State>((set, get) => ({
                 ? {
                     id: saved.id,
                     direction: 'out',
-                    author: 'agent',
+                    author: 'agent' as const,
                     text: saved.content,
                     attachments: saved.attachments ?? [],
                     time: shortTime(saved.created_at),
+                    senderName: saved.sender_name,
                   }
                 : m,
             ),

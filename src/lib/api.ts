@@ -65,6 +65,7 @@ export type Message = {
   content: string;
   channel: string;
   external_user_id?: string;
+  sender_name?: string;
   attachments?: MessageAttachment[];
   created_at: string;
 };

@@ -19,7 +19,7 @@ import { Bot, Save, Sliders } from "@/components/ui/Icon";
 
 type Persona = "friendly" | "formal" | "fun" | "concise";
 type Mode = "auto" | "suggest" | "manual";
-type Lang = "th" | "en" | "mix";
+type Lang = "th" | "en" | "mix" | "auto";
 
 const modeOptions: { value: Mode; label: string; description: string }[] = [
   {
@@ -126,6 +126,7 @@ export default function BotPage() {
                     value={language}
                     onChange={(e) => setLanguage(e.target.value as Lang)}
                   >
+                    <option value="auto">Auto-detect (any language)</option>
                     <option value="th">ภาษาไทย / Thai</option>
                     <option value="en">English</option>
                     <option value="mix">ไทย + English</option>
