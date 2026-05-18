@@ -297,7 +297,7 @@ export default function HomePage() {
                 )}
                 <p className="mb-6 mt-2 text-[13px] text-ink-faint">{p.description}</p>
                 <ul className="mb-7 space-y-2.5">
-                  {Object.entries(p.limits.channels).map(([provider, n]) => (
+                  {Object.entries(p.limits.channels).filter(([, n]) => n !== 0).map(([provider, n]) => (
                     <li key={provider} className="flex items-center gap-2.5 text-sm text-ink">
                       <Check className="h-4 w-4 flex-shrink-0 text-brand-600" />
                       {n === -1 ? (isTh ? `${provider} ไม่จำกัด` : `Unlimited ${provider}`) : `${n} ${provider}`}
