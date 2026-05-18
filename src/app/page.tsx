@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
@@ -128,11 +129,27 @@ export default function HomePage() {
     <main className="page-enter bg-page text-ink">
       {/* Top nav */}
       <nav className="sticky top-0 z-30 flex items-center gap-2 border-b border-line2 bg-card px-4 py-2.5 md:px-6 md:py-3">
-        <Link
-          href="/"
-          className="mr-auto text-lg font-extrabold tracking-tight text-brand-600"
-        >
-          Top<span className="text-ink">Dee</span>
+        <Link href="/" className="mr-auto flex items-center">
+          <Image
+            src="/topdee-light.png"
+            alt="TopDee"
+            width={2451}
+            height={730}
+            style={{ height: "32px", width: "auto" }}
+            className="block dark:hidden"
+            priority
+            unoptimized
+          />
+          <Image
+            src="/topdee-dark.png"
+            alt="TopDee"
+            width={2451}
+            height={730}
+            style={{ height: "32px", width: "auto" }}
+            className="hidden dark:block"
+            priority
+            unoptimized
+          />
         </Link>
 
         {/* Language + theme — no extra padding on mobile */}

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
@@ -45,11 +46,27 @@ export function Sidebar() {
   return (
     <aside className="hidden h-screen w-[220px] flex-col border-r border-line2 bg-card md:flex">
       <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-        <Link
-          href="/inbox"
-          className="px-3 pb-4 pt-2 text-base font-extrabold tracking-tight text-brand-600"
-        >
-          TopDee
+        <Link href="/inbox" className="flex items-center px-3 pb-4 pt-2">
+          <Image
+            src="/topdee-light.png"
+            alt="TopDee"
+            width={2451}
+            height={730}
+            style={{ height: "36px", width: "auto" }}
+            className="block dark:hidden"
+            priority
+            unoptimized
+          />
+          <Image
+            src="/topdee-dark.png"
+            alt="TopDee"
+            width={2451}
+            height={730}
+            style={{ height: "36px", width: "auto" }}
+            className="hidden dark:block"
+            priority
+            unoptimized
+          />
         </Link>
 
         {primary.filter(canSee).map((it) => (

@@ -21,6 +21,12 @@ export const metadata: Metadata = {
     "Unified inbox + AI chatbot for LINE, Facebook, Instagram and Webchat. Built for Thai SMEs.",
 };
 
+// viewport-fit=cover lets the page extend into the iPhone notch/Dynamic Island
+// area so we can manually offset content with env(safe-area-inset-top).
+export const viewport = {
+  viewportFit: "cover" as const,
+};
+
 export default function RootLayout({
   children,
 }: {

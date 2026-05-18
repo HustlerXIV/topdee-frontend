@@ -100,3 +100,16 @@ body {
 .no-scrollbar,
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Mobile nav offset — only active below the md breakpoint (< 768 px).
+   Matches the MobileNav height exactly:
+     max(env(safe-area-inset-top), 12px)  ← nav's own top padding (handles iPhone notch)
+   + 30px image height
+   + 12px bottom padding
+   + 1px border
+   = correct clearance on both plain Android and iPhone with safe-area. */
+@media (max-width: 767px) {
+  .pt-mobile-nav {
+    padding-top: calc(max(env(safe-area-inset-top, 0px), 12px) + 43px);
+  }
+}
+

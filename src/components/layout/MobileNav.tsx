@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
@@ -59,8 +60,27 @@ export function MobileNav() {
         className="fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b border-line2 bg-card px-4 md:hidden"
         style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)', paddingBottom: '12px' }}
       >
-        <Link href="/inbox" className="text-base font-extrabold tracking-tight text-brand-600">
-          TopDee
+        <Link href="/inbox" className="flex items-center">
+          <Image
+            src="/topdee-light.png"
+            alt="TopDee"
+            width={2451}
+            height={730}
+            style={{ height: "30px", width: "auto" }}
+            className="block dark:hidden"
+            priority
+            unoptimized
+          />
+          <Image
+            src="/topdee-dark.png"
+            alt="TopDee"
+            width={2451}
+            height={730}
+            style={{ height: "30px", width: "auto" }}
+            className="hidden dark:block"
+            priority
+            unoptimized
+          />
         </Link>
         <button
           type="button"
@@ -80,12 +100,25 @@ export function MobileNav() {
             className="flex shrink-0 items-center justify-between border-b border-line2 px-4"
             style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)', paddingBottom: '12px' }}
           >
-            <Link
-              href="/inbox"
-              onClick={() => setOpen(false)}
-              className="text-base font-extrabold tracking-tight text-brand-600"
-            >
-              TopDee
+            <Link href="/inbox" onClick={() => setOpen(false)} className="flex items-center">
+              <Image
+                src="/topdee-light.png"
+                alt="TopDee"
+                width={2451}
+                height={730}
+                style={{ height: "30px", width: "auto" }}
+                className="block dark:hidden"
+                unoptimized
+              />
+              <Image
+                src="/topdee-dark.png"
+                alt="TopDee"
+                width={2451}
+                height={730}
+                style={{ height: "30px", width: "auto" }}
+                className="hidden dark:block"
+                unoptimized
+              />
             </Link>
             <button
               type="button"
