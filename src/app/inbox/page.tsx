@@ -23,6 +23,7 @@ import {
   MessageCircle,
   Clock,
   User,
+  ChevronRight,
 } from "@/components/ui/Icon";
 import type { ComponentType, ReactNode } from "react";
 
@@ -708,6 +709,16 @@ function CustomerContextPanel({
   conv: Conversation;
   agentName: string;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [openSections, setOpenSections] = useState({
+    conversation: true,
+    handledBy: true,
+    channel: true,
+  });
+
+  const toggleSection = (key: keyof typeof openSections) =>
+    setOpenSections((s) => ({ ...s, [key]: !s[key] }));
+
   const visibleMessages = conv.messages.filter(
     (m) => m.author !== "suggestion",
   );
@@ -720,90 +731,159 @@ function CustomerContextPanel({
   );
 
   return (
-    <aside className="hidden w-[220px] shrink-0 flex-col overflow-y-auto border-l border-line2 bg-card xl:flex">
-      {/* Customer info */}
-      <div className="flex flex-col items-center border-b border-line2 px-4 py-5 text-center">
-        <Avatar
-          initials={conv.initials}
-          tone={conv.avatarTone}
-          size="lg"
-          badge={<ChannelDot channel={conv.channel} />}
-        />
-        <h3 className="mt-3 text-[13px] font-semibold leading-snug text-ink">
-          {conv.customerName}
-        </h3>
-        <ChannelPill channel={conv.channel} label={conv.channelName} />
+    <aside
+      className={cn(
+        "hidden shrink-0 flex-col border-l border-line2 bg-card transition-[width] xl:flex",
+        collapsed ? "w-10 overflow-hidden" : "w-[220px] overflow-y-auto",
+      )}
+    >
+      {/* Panel toggle — always visible */}
+      <div
+        className={cn(
+          "flex shrink-0 items-center border-b border-line2 px-2 py-2",
+          collapsed ? "justify-center" : "justify-end",
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => setCollapsed((v) => !v)}
+          title={collapsed ? "Expand context panel" : "Collapse context panel"}
+          className="flex h-6 w-6 items-center justify-center rounded-md text-ink-faint transition-colors hover:bg-muted hover:text-ink"
+        >
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 transition-transform",
+              !collapsed && "rotate-180",
+            )}
+          />
+        </button>
       </div>
 
-      {/* Stats */}
-      <div className="border-b border-line2 px-4 py-3">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
-          Conversation
-        </p>
-        <div className="flex flex-col gap-2">
-          <ContextRow
-            icon={<MessageCircle className="h-3.5 w-3.5" />}
-            label="Messages"
-            value={String(visibleMessages.length)}
-          />
-          <ContextRow
-            icon={<User className="h-3.5 w-3.5" />}
-            label="From customer"
-            value={String(customerMessages.length)}
-          />
-          <ContextRow
-            icon={<UserCheck className="h-3.5 w-3.5" />}
-            label="Replies sent"
-            value={String(agentMessages.length)}
-          />
-          {firstMessage && (
+      {/* Content — hidden when collapsed */}
+      {!collapsed && (
+        <>
+          {/* Customer info */}
+          <div className="flex flex-col items-center border-b border-line2 px-4 py-5 text-center">
+            <Avatar
+              initials={conv.initials}
+              tone={conv.avatarTone}
+              size="lg"
+              badge={<ChannelDot channel={conv.channel} />}
+            />
+            <h3 className="mt-3 text-[13px] font-semibold leading-snug text-ink">
+              {conv.customerName}
+            </h3>
+            <ChannelPill channel={conv.channel} label={conv.channelName} />
+          </div>
+
+          {/* Stats */}
+          <ContextSection
+            label="Conversation"
+            open={openSections.conversation}
+            onToggle={() => toggleSection("conversation")}
+          >
+            <ContextRow
+              icon={<MessageCircle className="h-3.5 w-3.5" />}
+              label="Messages"
+              value={String(visibleMessages.length)}
+            />
+            <ContextRow
+              icon={<User className="h-3.5 w-3.5" />}
+              label="From customer"
+              value={String(customerMessages.length)}
+            />
+            <ContextRow
+              icon={<UserCheck className="h-3.5 w-3.5" />}
+              label="Replies sent"
+              value={String(agentMessages.length)}
+            />
+            {firstMessage && (
+              <ContextRow
+                icon={<Clock className="h-3.5 w-3.5" />}
+                label="Started"
+                value={firstMessage.time}
+              />
+            )}
             <ContextRow
               icon={<Clock className="h-3.5 w-3.5" />}
-              label="Started"
-              value={firstMessage.time}
+              label="Last message"
+              value={conv.time}
             />
-          )}
-          <ContextRow
-            icon={<Clock className="h-3.5 w-3.5" />}
-            label="Last message"
-            value={conv.time}
-          />
-        </div>
-      </div>
+          </ContextSection>
 
-      {/* Handled by */}
-      <div className="border-b border-line2 px-4 py-3">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
-          Handled by
-        </p>
-        <div className="flex flex-col gap-2">
-          <ContextRow
-            icon={<Sparkles className="h-3.5 w-3.5" />}
-            label="Mode"
-            value={conv.kind === "ai" ? "AI Agent" : "Human Agent"}
-          />
-          {conv.needsHuman && (
-            <div className="rounded-lg bg-orange-50 px-2.5 py-1.5 text-[11px] text-orange-700 dark:bg-orange-950/30 dark:text-orange-300">
-              ⚠️ Awaiting human reply
-            </div>
-          )}
-        </div>
-      </div>
+          {/* Handled by */}
+          <ContextSection
+            label="Handled by"
+            open={openSections.handledBy}
+            onToggle={() => toggleSection("handledBy")}
+          >
+            <ContextRow
+              icon={<Sparkles className="h-3.5 w-3.5" />}
+              label="Mode"
+              value={conv.kind === "ai" ? "AI Agent" : "Human Agent"}
+            />
+            {conv.needsHuman && (
+              <div className="rounded-lg bg-orange-50 px-2.5 py-1.5 text-[11px] text-orange-700 dark:bg-orange-950/30 dark:text-orange-300">
+                ⚠️ Awaiting human reply
+              </div>
+            )}
+          </ContextSection>
 
-      {/* Channel */}
-      <div className="px-4 py-3">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
-          Channel
-        </p>
-        <div className="flex flex-col gap-2">
-          <ContextRow
-            icon={<ChannelDot channel={conv.channel} />}
-            label="Platform"
-            value={conv.channelName}
-          />
-        </div>
-      </div>
+          {/* Channel */}
+          <ContextSection
+            label="Channel"
+            open={openSections.channel}
+            onToggle={() => toggleSection("channel")}
+            last
+          >
+            <ContextRow
+              icon={<ChannelDot channel={conv.channel} />}
+              label="Platform"
+              value={conv.channelName}
+            />
+          </ContextSection>
+        </>
+      )}
     </aside>
+  );
+}
+
+function ContextSection({
+  label,
+  open,
+  onToggle,
+  last = false,
+  children,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  last?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn(!last && "border-b border-line2")}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-muted"
+      >
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+          {label}
+        </span>
+        <ChevronRight
+          className={cn(
+            "h-3 w-3 shrink-0 text-ink-faint transition-transform",
+            open && "rotate-90",
+          )}
+        />
+      </button>
+      {open && (
+        <div className="flex flex-col gap-2 px-4 pb-3">
+          {children}
+        </div>
+      )}
+    </div>
   );
 }
 

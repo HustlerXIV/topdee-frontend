@@ -109,8 +109,15 @@ function toneFor(seed: string): Conversation['avatarTone'] {
 function initialsFor(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
-  // Most "LINE User abcd12" style names — take the last token's first char.
-  return parts[parts.length - 1][0]?.toUpperCase() ?? '?';
+  // Skip tokens that start with punctuation like "(" so that names like
+  // "ナパット Napat (ตังค์)" don't produce "(" as the initial.
+  // Use unicode-aware spread ([...token]) so multi-byte chars (Thai, Japanese)
+  // are sliced correctly.
+  const meaningful = parts.filter((p) => /^\p{L}/u.test(p));
+  const token = meaningful.length > 0
+    ? meaningful[meaningful.length - 1]  // last real word, e.g. "Napat" or "abcd12"
+    : parts[parts.length - 1];           // fallback to raw last token
+  return ([...token][0] ?? '?').toUpperCase();
 }
 
 /** "5 min", "2 ชม.", "yesterday" — quick relative format without a heavy
