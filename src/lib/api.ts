@@ -748,6 +748,17 @@ export const api = {
         `/api/v1/inbox/conversations/${encodeURIComponent(id)}/messages`,
         { method: 'POST', body: JSON.stringify({ text }) },
       ),
+    /** Upload an image to R2 and send it to the customer via the right
+     * platform's API (LINE push image, FB attachment). Persists as
+     * role="human" with an image attachment. */
+    sendImage: (id: string, file: File) => {
+      const fd = new FormData();
+      fd.append('image', file);
+      return request<Message>(
+        `/api/v1/inbox/conversations/${encodeURIComponent(id)}/images`,
+        { method: 'POST', body: fd },
+      );
+    },
     /** Number of conversations where the customer spoke last (needs reply). */
     unreadCount: () => request<{ count: number }>('/api/v1/inbox/unread-count'),
     /** Clear the needs_human flag — team has taken over / resolved the question. */

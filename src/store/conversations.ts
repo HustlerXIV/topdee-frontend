@@ -66,6 +66,9 @@ type State = {
   /** Send a manual reply through the platform's push API. Throws on
    * failure so callers can show a toast. */
   sendMessage: (id: string, text: string) => Promise<void>;
+  /** Send an image file to the customer via the platform's push API. Throws on
+   * failure so callers can show a toast. */
+  sendImage: (id: string, file: File) => Promise<void>;
   /** Clear needs_human flag after team has resolved the escalation. */
   resolveHandoff: (id: string) => Promise<void>;
 };
@@ -373,6 +376,67 @@ export const useConversations = create<State>((set, get) => ({
       }));
     } catch (e) {
       // Roll back the optimistic append.
+      set((s) => ({
+        conversations: s.conversations.map((c) =>
+          c.id === id
+            ? { ...c, messages: c.messages.filter((m) => m.id !== tempId) }
+            : c,
+        ),
+      }));
+      throw e;
+    }
+  },
+
+  sendImage: async (id, file) => {
+    // Optimistic bubble — show a local preview URL immediately so the UI
+    // feels instant, then replace with the server-confirmed URL.
+    const tempId = 'tmp-img-' + Date.now();
+    const localURL = URL.createObjectURL(file);
+    const optimistic: ConvMessage = {
+      id: tempId,
+      direction: 'out',
+      author: 'agent',
+      text: '',
+      attachments: [{ type: 'image', url: localURL, name: file.name }],
+      time: new Date().toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    };
+    set((s) => ({
+      conversations: s.conversations.map((c) =>
+        c.id === id
+          ? { ...c, messages: [...c.messages, optimistic], preview: '📷 Image', time: 'just now' }
+          : c,
+      ),
+    }));
+
+    try {
+      const saved = await api.inbox.sendImage(id, file);
+      URL.revokeObjectURL(localURL);
+      set((s) => ({
+        conversations: s.conversations.map((c) => {
+          if (c.id !== id) return c;
+          return {
+            ...c,
+            messages: c.messages.map((m) =>
+              m.id === tempId
+                ? {
+                    id: saved.id,
+                    direction: 'out' as const,
+                    author: 'agent' as const,
+                    text: saved.content ?? '',
+                    attachments: saved.attachments ?? [],
+                    time: shortTime(saved.created_at),
+                    senderName: saved.sender_name,
+                  }
+                : m,
+            ),
+          };
+        }),
+      }));
+    } catch (e) {
+      URL.revokeObjectURL(localURL);
       set((s) => ({
         conversations: s.conversations.map((c) =>
           c.id === id

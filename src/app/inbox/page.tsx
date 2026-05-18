@@ -40,6 +40,7 @@ export default function InboxPage() {
     refresh,
     loadMessages,
     sendMessage,
+    sendImage,
     resolveHandoff,
   } = useConversations();
   const user = useAuth((s) => s.user);
@@ -199,6 +200,19 @@ export default function InboxPage() {
                   showToast(msg, "default");
                 }
               }}
+              onSendImage={async (file) => {
+                try {
+                  await sendImage(selected.id, file);
+                } catch (e) {
+                  const msg =
+                    e instanceof ApiError
+                      ? e.message
+                      : e instanceof Error
+                        ? e.message
+                        : "image send failed";
+                  showToast(msg, "default");
+                }
+              }}
               onResolveHandoff={async () => {
                 try {
                   await resolveHandoff(selected.id);
@@ -295,6 +309,7 @@ function ChatArea({
   agentInitial,
   onBack,
   onSend,
+  onSendImage,
   onResolveHandoff,
 }: {
   conv: Conversation;
@@ -302,6 +317,7 @@ function ChatArea({
   agentInitial: string;
   onBack: () => void;
   onSend: (text: string) => void;
+  onSendImage: (file: File) => void;
   onResolveHandoff: () => void;
 }) {
   const t = useT();
@@ -484,7 +500,7 @@ function ChatArea({
                           : "rounded-bl-md border border-line2 bg-card text-ink",
                       )}
                     >
-                      {!(m.attachments.length > 0 && m.text === "[Image]") && (
+                      {m.text && !(m.attachments.length > 0 && m.text === "[Image]") && (
                         <MarkdownText
                           text={m.text}
                           isOutbound={m.direction === "out"}
@@ -496,7 +512,7 @@ function ChatArea({
                           <AttachmentImage
                             key={a.id ?? a.url ?? index}
                             attachment={a}
-                            compact={m.text !== "[Image]"}
+                            compact={!!m.text && m.text !== "[Image]"}
                             onOpen={(src, alt) =>
                               setPreviewImage({ src, alt })
                             }
@@ -602,15 +618,12 @@ function ChatArea({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,.pdf,.doc,.docx"
+                accept="image/*"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    // TODO: upload & send — for now just show the filename in draft
-                    setDraft((d) =>
-                      d ? `${d} [${file.name}]` : `[${file.name}]`,
-                    );
+                    onSendImage(file);
                   }
                   e.target.value = "";
                 }}
