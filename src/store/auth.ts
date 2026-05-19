@@ -53,11 +53,14 @@ export const useAuth = create<AuthState>((set) => ({
         user = null;
       }
     }
-    // Backfill role + is_admin from the JWT if missing on the cached user.
+    // Always sync role + is_admin from the live JWT so that an admin flag
+    // set after a session was created (or a stale cached value) is never
+    // permanently stuck.  The backend re-verifies the signature on every
+    // request so there is no security risk in trusting the decoded payload here.
     if (token && user) {
       const claims = decodeClaimsFromToken(token);
       if (!user.role && claims?.role) user = { ...user, role: claims.role };
-      if (user.isAdmin === undefined && claims?.isAdmin !== undefined) {
+      if (claims?.isAdmin !== undefined) {
         user = { ...user, isAdmin: claims.isAdmin };
       }
     }
@@ -67,7 +70,9 @@ export const useAuth = create<AuthState>((set) => ({
   setSession: (token, user) => {
     const claims = decodeClaimsFromToken(token);
     if (!user.role && claims?.role) user = { ...user, role: claims.role };
-    if (user.isAdmin === undefined && claims?.isAdmin !== undefined) {
+    // Always take is_admin from the JWT — never let a stale caller-supplied
+    // value win over what the server actually signed.
+    if (claims?.isAdmin !== undefined) {
       user = { ...user, isAdmin: claims.isAdmin };
     }
     if (typeof window !== 'undefined') {
