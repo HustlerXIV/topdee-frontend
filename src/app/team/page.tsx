@@ -222,22 +222,38 @@ export default function TeamPage() {
               {invites.map((inv) => (
                 <li
                   key={inv.id}
-                  className="flex items-center gap-3 border-b border-line2 py-3.5 last:border-b-0"
+                  className="border-b border-line2 py-3.5 last:border-b-0"
                 >
-                  <Avatar initials="?" tone="gray" size="md" />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-ink">{inv.email}</div>
-                    <div className="text-[13px] text-ink-faint">
-                      Expires {new Date(inv.expires_at).toLocaleDateString()}
+                  {/* Top row: avatar + email */}
+                  <div className="flex items-center gap-3">
+                    <Avatar initials="?" tone="gray" size="md" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-ink">{inv.email}</div>
+                      <div className="text-[13px] text-ink-faint">
+                        Expires {new Date(inv.expires_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    {/* Actions inline on sm+ */}
+                    <div className="hidden shrink-0 items-center gap-2 sm:flex">
+                      <Badge tone={ROLE_TONE[inv.role]}>{inv.role}</Badge>
+                      <Button variant="outline" size="sm" onClick={() => resend(inv)}>
+                        {t('team.resend')}
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => revoke(inv)}>
+                        {t('common.delete')}
+                      </Button>
                     </div>
                   </div>
-                  <Badge tone={ROLE_TONE[inv.role]}>{inv.role}</Badge>
-                  <Button variant="outline" size="sm" onClick={() => resend(inv)}>
-                    {t('team.resend')}
-                  </Button>
-                  <Button variant="danger" size="sm" onClick={() => revoke(inv)}>
-                    {t('common.delete')}
-                  </Button>
+                  {/* Actions row on mobile (indented to align with text) */}
+                  <div className="mt-2.5 flex items-center gap-2 pl-[52px] sm:hidden">
+                    <Badge tone={ROLE_TONE[inv.role]}>{inv.role}</Badge>
+                    <Button variant="outline" size="sm" onClick={() => resend(inv)}>
+                      {t('team.resend')}
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => revoke(inv)}>
+                      {t('common.delete')}
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -253,42 +269,59 @@ export default function TeamPage() {
           )}
           {members && members.length > 0 && (
             <ul>
-              {members.map((m, i) => (
-                <li
-                  key={m.id}
-                  className="flex items-center gap-3 border-b border-line2 py-3.5 last:border-b-0"
-                >
-                  <Avatar
-                    initials={(m.name || m.email).slice(0, 1).toUpperCase()}
-                    tone={TONES[i % TONES.length]}
-                    size="md"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-ink">{m.name || m.email}</div>
-                    <div className="text-[13px] text-ink-faint">{m.email}</div>
-                  </div>
-                  {/* Role: only owner can change; admins+ can see; everyone else read-only badge */}
-                  {m.role === 'owner' || myRole !== 'owner' ? (
-                    <Badge tone={ROLE_TONE[m.role]}>{m.role}</Badge>
-                  ) : (
-                    <Select
-                      value={m.role}
-                      onChange={(e) => changeRole(m, e.target.value as Role)}
-                      className="w-32"
-                    >
-                      {ASSIGNABLE_ROLES.map((r) => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </Select>
-                  )}
-                  {/* Remove button: owner+admin can remove non-owners */}
-                  {canManage && m.role !== 'owner' && (
-                    <Button variant="danger" size="sm" onClick={() => remove(m)}>
-                      {t('common.delete')}
-                    </Button>
-                  )}
-                </li>
-              ))}
+              {members.map((m, i) => {
+                const roleWidget = m.role === 'owner' || myRole !== 'owner' ? (
+                  <Badge tone={ROLE_TONE[m.role]}>{m.role}</Badge>
+                ) : (
+                  <Select
+                    value={m.role}
+                    onChange={(e) => changeRole(m, e.target.value as Role)}
+                    className="w-28"
+                  >
+                    {ASSIGNABLE_ROLES.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </Select>
+                );
+                const hasActions = canManage && m.role !== 'owner';
+                return (
+                  <li
+                    key={m.id}
+                    className="border-b border-line2 py-3.5 last:border-b-0"
+                  >
+                    {/* Top row: avatar + name */}
+                    <div className="flex items-center gap-3">
+                      <Avatar
+                        initials={(m.name || m.email).slice(0, 1).toUpperCase()}
+                        tone={TONES[i % TONES.length]}
+                        size="md"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-ink">{m.name || m.email}</div>
+                        <div className="text-[13px] text-ink-faint">{m.email}</div>
+                      </div>
+                      {/* Actions inline on sm+ */}
+                      <div className="hidden shrink-0 items-center gap-2 sm:flex">
+                        {roleWidget}
+                        {hasActions && (
+                          <Button variant="danger" size="sm" onClick={() => remove(m)}>
+                            {t('common.delete')}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {/* Actions row on mobile */}
+                    <div className="mt-2.5 flex items-center gap-2 pl-[52px] sm:hidden">
+                      {roleWidget}
+                      {hasActions && (
+                        <Button variant="danger" size="sm" onClick={() => remove(m)}>
+                          {t('common.delete')}
+                        </Button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>

@@ -333,6 +333,7 @@ function ChatArea({
     string | null
   >(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -370,9 +371,10 @@ function ChatArea({
     setShowQuickReply(false);
   }, [conv.id]);
 
+  // Scroll to bottom on initial load, conversation switch, and new messages
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [visibleMessages.length]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+  }, [visibleMessages.length, conv.id, conv.loaded]);
 
   function send() {
     const text = draft.trim();
@@ -474,7 +476,7 @@ function ChatArea({
                       ? "flex-row-reverse self-end"
                       : "self-start",
                   )}
-                >
+>
                   <Avatar
                     size="sm"
                     tone={
@@ -534,6 +536,8 @@ function ChatArea({
                   </div>
                 </div>
               ))}
+              {/* Scroll anchor — always at the bottom of the message list */}
+              <div ref={messagesEndRef} />
             </div>
           </div>
 
