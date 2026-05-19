@@ -26,6 +26,7 @@ const primary: NavItem[] = [
 const secondary: NavItem[] = [
   { href: '/team',     icon: 'team',     labelKey: 'nav.team',    roles: ['owner', 'admin'] },
   { href: '/billing',  icon: 'billing',  labelKey: 'nav.billing', roles: ['owner'] },
+  { href: '/referral', icon: 'referral', labelKey: 'nav.referral', roles: ['owner'] },
   { href: '/settings', icon: 'settings', labelKey: 'nav.settings' },
 ];
 

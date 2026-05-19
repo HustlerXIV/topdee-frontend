@@ -353,6 +353,73 @@ export type BotSettings = {
   updated_at?: string;
 };
 
+// ── Referral ────────────────────────────────────────────────────────
+
+export type ReferralCode = {
+  /** The code string itself (e.g. "NAPAT26"). Also the _id. */
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  created_at: string;
+};
+
+export type Referral = {
+  id: string;
+  code: string;
+  referrer_tenant_id: string;
+  referrer_user_id: string;
+  referred_tenant_id: string;
+  referred_tenant_name: string;
+  status: 'active' | 'paused' | string;
+  commission_count: number;
+  total_earned: number; // satang
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReferralStats = {
+  total_referrals: number;
+  total_earned: number; // satang
+  referrals: Referral[];
+};
+
+export type ReferralWallet = {
+  id: string;
+  tenant_id: string;
+  balance: number; // satang
+  payout_type: 'manual' | 'credit';
+  updated_at?: string;
+};
+
+export type WalletTransaction = {
+  id: string;
+  tenant_id: string;
+  type: 'commission' | 'payout' | 'credit_applied' | string;
+  amount: number; // satang, positive=credit, negative=debit
+  referral_id?: string;
+  description: string;
+  created_at: string;
+};
+
+export type ReferralSettings = {
+  id?: string;
+  enabled: boolean;
+  first_commission_amount: number;   // satang
+  recurring_commission_amount: number; // satang
+  discount_percent: number;          // 0–100
+  discount_duration_months: number;
+  default_payout_type: 'manual' | 'credit';
+  updated_at?: string;
+};
+
+export type AdminReferralRow = Referral & {
+  referrer_tenant_name: string;
+};
+
+export type AdminWalletRow = ReferralWallet & {
+  tenant_name: string;
+};
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -409,10 +476,10 @@ export const api = {
   // Public — no auth required. Used by homepage and billing page.
   plans: () => request<Plan[]>('/api/v1/plans'),
 
-  register: (tenant_name: string, email: string, password: string) =>
+  register: (tenant_name: string, email: string, password: string, referral_code?: string) =>
     request<{ token: string; user: AuthUser }>('/api/v1/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ tenant_name, email, password, accepted_privacy: true }),
+      body: JSON.stringify({ tenant_name, email, password, accepted_privacy: true, referral_code: referral_code ?? '' }),
     }),
 
   login: (email: string, password: string) =>
@@ -767,6 +834,41 @@ export const api = {
         `/api/v1/inbox/conversations/${encodeURIComponent(id)}/resolve`,
         { method: 'PATCH' },
       ),
+  },
+
+  referral: {
+    /** My referral code (auto-created if missing). */
+    code: () => request<ReferralCode>('/api/v1/referral/code'),
+    /** Stats + list of tenants I referred. */
+    stats: () => request<ReferralStats>('/api/v1/referral'),
+    /** Wallet balance + last 50 transactions. */
+    wallet: () => request<{ wallet: ReferralWallet; transactions: WalletTransaction[] }>('/api/v1/referral/wallet'),
+    /** Request payout (manual or credit). */
+    requestPayout: (payout_type?: 'manual' | 'credit') =>
+      request<{ ok: boolean; type: string; amount: number; message: string }>('/api/v1/referral/wallet/payout', {
+        method: 'POST',
+        body: JSON.stringify({ payout_type }),
+      }),
+  },
+
+  adminReferral: {
+    settings: () => request<ReferralSettings>('/api/v1/admin/referral/settings'),
+    updateSettings: (body: Partial<ReferralSettings>) =>
+      request<ReferralSettings>('/api/v1/admin/referral/settings', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+    referrals: () => request<AdminReferralRow[]>('/api/v1/admin/referral/referrals'),
+    wallets: () => request<AdminWalletRow[]>('/api/v1/admin/referral/wallets'),
+    markPayout: (walletId: string) =>
+      request<{ ok: boolean; amount: number }>(`/api/v1/admin/referral/wallets/${encodeURIComponent(walletId)}/payout`, {
+        method: 'POST',
+      }),
+    updateWalletPayoutType: (walletId: string, payout_type: 'manual' | 'credit') =>
+      request<void>(`/api/v1/admin/referral/wallets/${encodeURIComponent(walletId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ payout_type }),
+      }),
   },
 
   playground: {

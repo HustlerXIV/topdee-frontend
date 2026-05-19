@@ -48,6 +48,7 @@ export const dictionary = {
   "nav.channels": { th: "ช่องทาง", en: "Channels" },
   "nav.team": { th: "ทีม", en: "Team" },
   "nav.billing": { th: "การเงิน", en: "Billing" },
+  "nav.referral": { th: "แนะนำเพื่อน", en: "Referral" },
   "nav.settings": { th: "ตั้งค่า", en: "Settings" },
 
   // ── Landing ───────────────────────────────────────────
@@ -123,6 +124,10 @@ export const dictionary = {
   "auth.privacyPolicy": {
     th: "นโยบายความเป็นส่วนตัว",
     en: "Privacy Policy",
+  },
+  "auth.referralCode": {
+    th: "รหัสแนะนำ (ถ้ามี)",
+    en: "Referral code (optional)",
   },
 
   // ── Onboarding ────────────────────────────────────────
