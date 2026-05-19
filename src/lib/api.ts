@@ -58,6 +58,16 @@ export type FacebookOAuthPagesResp = {
   pages: { id: string; name: string; category?: string }[];
 };
 
+export type InstagramOAuthStartResp = {
+  login_url: string;
+  state: string;
+};
+
+export type InstagramOAuthAccountsResp = {
+  state: string;
+  accounts: { igid: string; name: string; username?: string }[];
+};
+
 export type Message = {
   id: string;
   conversation_id: string;
@@ -723,6 +733,29 @@ export const api = {
           {
             method: 'POST',
             body: JSON.stringify({ state, page_ids }),
+          },
+        ),
+    },
+
+    instagram: {
+      /** Step 1: get the Instagram OAuth URL. Frontend should redirect to it. */
+      oauthStart: () =>
+        request<InstagramOAuthStartResp>(
+          '/api/v1/channels/instagram/oauth/start',
+          { method: 'POST' },
+        ),
+      /** Step 3: list Instagram Business Accounts discovered during OAuth. */
+      oauthAccounts: (state: string) =>
+        request<InstagramOAuthAccountsResp>(
+          `/api/v1/channels/instagram/oauth/accounts?state=${encodeURIComponent(state)}`,
+        ),
+      /** Step 4: persist the chosen IG accounts as connections. */
+      oauthConnect: (state: string, ig_ids: string[]) =>
+        request<{ connections: ChannelConnection[] }>(
+          '/api/v1/channels/instagram/oauth/connect',
+          {
+            method: 'POST',
+            body: JSON.stringify({ state, ig_ids }),
           },
         ),
     },
