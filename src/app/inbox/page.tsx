@@ -333,7 +333,6 @@ function ChatArea({
     string | null
   >(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -371,9 +370,14 @@ function ChatArea({
     setShowQuickReply(false);
   }, [conv.id]);
 
-  // Scroll to bottom on initial load, conversation switch, and new messages
+  // Scroll to bottom on initial load, conversation switch, and new messages.
+  // requestAnimationFrame ensures the DOM has painted before we read scrollHeight.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+    const el = scrollRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
   }, [visibleMessages.length, conv.id, conv.loaded]);
 
   function send() {
@@ -536,8 +540,6 @@ function ChatArea({
                   </div>
                 </div>
               ))}
-              {/* Scroll anchor — always at the bottom of the message list */}
-              <div ref={messagesEndRef} />
             </div>
           </div>
 
