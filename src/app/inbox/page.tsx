@@ -370,9 +370,15 @@ function ChatArea({
     setShowQuickReply(false);
   }, [conv.id]);
 
+  // Scroll to bottom on initial load, conversation switch, and new messages.
+  // requestAnimationFrame ensures the DOM has painted before we read scrollHeight.
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [visibleMessages.length]);
+    const el = scrollRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+  }, [visibleMessages.length, conv.id, conv.loaded]);
 
   function send() {
     const text = draft.trim();
@@ -474,7 +480,7 @@ function ChatArea({
                       ? "flex-row-reverse self-end"
                       : "self-start",
                   )}
-                >
+>
                   <Avatar
                     size="sm"
                     tone={

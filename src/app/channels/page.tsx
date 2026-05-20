@@ -1,8 +1,8 @@
 'use client';
 
 // Channels page — manage external account connections (Facebook pages,
-// LINE Official Accounts). The backend now supports many connections per
-// provider, capped by the workspace's plan tier.
+// Instagram Business Accounts, LINE Official Accounts). The backend supports
+// many connections per provider, capped by the workspace's plan tier.
 //
 // Flows wired up here:
 //
@@ -10,13 +10,15 @@
 //   • LINE    — paste channel_id/secret/access_token (no OAuth on LINE)
 //   • FB      — OAuth: start → redirect to Facebook → callback bounces back
 //               here with ?fb_oauth=ok&state=... → list pages → pick → connect
+//   • IG      — OAuth: start → redirect to Meta → callback bounces back
+//               here with ?ig_oauth=ok&state=... → list IG accounts → pick → connect
 //   • DELETE  — disconnect by connection id
 
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell, PageBody, PageHeader, useRoleGuard } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
-import { FormGroup, FormRow, Input } from '@/components/ui/Input';
+import { FormGroup, Input } from '@/components/ui/Input';
 import {
   api,
   ApiError,
@@ -30,10 +32,11 @@ import {
   Plug,
   MessageCircle,
   Facebook,
+  Instagram,
   X as XIcon,
 } from '@/components/ui/Icon';
 
-type ProviderKey = 'facebook' | 'line';
+type ProviderKey = 'facebook' | 'instagram' | 'line';
 
 type ProviderSpec = {
   id: ProviderKey;
@@ -52,6 +55,13 @@ const PROVIDERS: ProviderSpec[] = [
     fg: 'text-fb dark:text-sky-300',
   },
   {
+    id: 'instagram',
+    name: 'Instagram Direct',
+    Logo: Instagram,
+    bg: 'bg-pink-50 dark:bg-pink-900/30',
+    fg: 'text-pink-600 dark:text-pink-300',
+  },
+  {
     id: 'line',
     name: 'LINE Official Account',
     Logo: MessageCircle,
@@ -66,11 +76,14 @@ export default function ChannelsPage() {
   const showToast = useUI((s) => s.showToast);
 
   const [data, setData] = useState<ChannelsResponse | null>(null);
-  const [openLine, setOpenLine] = useState(false);
-  // Holds the OAuth state token while we show the page picker. Null when no
-  // picker is open.
+  // Which provider's inline panel is open: null | 'facebook' | 'instagram' | 'line'
+  const [openProvider, setOpenProvider] = useState<ProviderKey | null>(null);
+  // FB OAuth state token (set when Meta redirects back with ?fb_oauth=ok)
   const [pickerState, setPickerState] = useState<string | null>(null);
+  // IG OAuth state token (set when Meta redirects back with ?ig_oauth=ok)
+  const [igPickerState, setIGPickerState] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [igBusy, setIGBusy] = useState(false);
 
   // ── Load connections on mount, and react to OAuth redirect query params.
   // We read window.location directly instead of useSearchParams so the page
@@ -80,14 +93,22 @@ export default function ChannelsPage() {
     if (typeof window === 'undefined') return;
     const search = new URLSearchParams(window.location.search);
     const fbOauth = search.get('fb_oauth');
+    const igOauth = search.get('ig_oauth');
     const oauthState = search.get('state');
+
     if (fbOauth === 'ok' && oauthState) {
       setPickerState(oauthState);
-      // Strip the query string so a subsequent refresh won't re-trigger the picker.
+      setOpenProvider('facebook');
       window.history.replaceState({}, '', '/channels');
     } else if (fbOauth === 'error') {
-      const reason = search.get('reason') ?? 'unknown';
-      showToast(`Facebook connect failed: ${reason}`, 'default');
+      showToast(`Facebook connect failed: ${search.get('reason') ?? 'unknown'}`, 'default');
+      window.history.replaceState({}, '', '/channels');
+    } else if (igOauth === 'ok' && oauthState) {
+      setIGPickerState(oauthState);
+      setOpenProvider('instagram');
+      window.history.replaceState({}, '', '/channels');
+    } else if (igOauth === 'error') {
+      showToast(`Instagram connect failed: ${search.get('reason') ?? 'unknown'}`, 'default');
       window.history.replaceState({}, '', '/channels');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -103,13 +124,21 @@ export default function ChannelsPage() {
     setBusy(true);
     try {
       const resp = await api.channels.facebook.oauthStart();
-      // Full-page redirect to Facebook. After the user authorizes, the FB
-      // callback redirects them back to /channels?fb_oauth=ok&state=...
       window.location.href = resp.login_url;
     } catch (e) {
       setBusy(false);
-      const msg = e instanceof ApiError ? e.message : 'connect failed';
-      showToast(msg, 'default');
+      showToast(e instanceof ApiError ? e.message : 'connect failed', 'default');
+    }
+  }
+
+  async function startInstagramOAuth() {
+    setIGBusy(true);
+    try {
+      const resp = await api.channels.instagram.oauthStart();
+      window.location.href = resp.login_url;
+    } catch (e) {
+      setIGBusy(false);
+      showToast(e instanceof ApiError ? e.message : 'connect failed', 'default');
     }
   }
 
@@ -124,10 +153,15 @@ export default function ChannelsPage() {
     }
   }
 
-  // Group connections by provider so we render one section per provider with
-  // its own "+ Connect" button and limit indicator.
+  function closePanel() {
+    setOpenProvider(null);
+    setPickerState(null);
+    setIGPickerState(null);
+  }
+
+  // Group connections by provider.
   const byProvider = useMemo(() => {
-    const out: Record<string, ChannelConnection[]> = { facebook: [], line: [] };
+    const out: Record<string, ChannelConnection[]> = { facebook: [], instagram: [], line: [] };
     for (const c of data?.connections ?? []) {
       (out[c.provider] ??= []).push(c);
     }
@@ -148,6 +182,55 @@ export default function ChannelsPage() {
             const used = data?.used?.[p.id] ?? 0;
             const limit = data?.limits?.[p.id] ?? 1;
             const atLimit = used >= limit;
+
+            // The inline panel rendered inside this provider's section.
+            let inlinePanel: React.ReactNode = null;
+            if (openProvider === p.id) {
+              if (p.id === 'facebook' && pickerState) {
+                inlinePanel = (
+                  <FacebookPagePicker
+                    state={pickerState}
+                    onClose={closePanel}
+                    onDone={(n) => {
+                      closePanel();
+                      refresh();
+                      showToast(`${n} Facebook page${n === 1 ? '' : 's'} connected`, 'success');
+                    }}
+                  />
+                );
+              } else if (p.id === 'instagram' && igPickerState) {
+                inlinePanel = (
+                  <InstagramAccountPicker
+                    state={igPickerState}
+                    onClose={closePanel}
+                    onDone={(n) => {
+                      closePanel();
+                      refresh();
+                      showToast(`${n} Instagram account${n === 1 ? '' : 's'} connected`, 'success');
+                    }}
+                  />
+                );
+              } else if (p.id === 'line') {
+                inlinePanel = (
+                  <ConnectLine
+                    onClose={closePanel}
+                    onDone={(conn) => {
+                      closePanel();
+                      refresh();
+                      if (conn.webhook_url && navigator.clipboard) {
+                        navigator.clipboard.writeText(conn.webhook_url).then(
+                          () => showToast('LINE connected — webhook URL copied to clipboard', 'success'),
+                          () => showToast('LINE connected', 'success'),
+                        );
+                      } else {
+                        showToast('LINE connected', 'success');
+                      }
+                    }}
+                  />
+                );
+              }
+            }
+
             return (
               <ProviderSection
                 key={p.id}
@@ -158,60 +241,25 @@ export default function ChannelsPage() {
                 onDisconnect={disconnect}
                 onConnect={() => {
                   if (atLimit) {
-                    showToast(
-                      `Plan limit reached (${used}/${limit}). Upgrade to add more.`,
-                      'default',
-                    );
+                    showToast(`Plan limit reached (${used}/${limit}). Upgrade to add more.`, 'default');
                     return;
                   }
                   if (p.id === 'facebook') startFacebookOAuth();
-                  if (p.id === 'line') setOpenLine(true);
+                  else if (p.id === 'instagram') startInstagramOAuth();
+                  else if (p.id === 'line') setOpenProvider('line');
                 }}
-                connectBusy={p.id === 'facebook' && busy}
+                connectBusy={(p.id === 'facebook' && busy) || (p.id === 'instagram' && igBusy)}
+                inlinePanel={inlinePanel}
               />
             );
           })}
         </div>
-
-        {openLine && (
-          <ConnectLine
-            onClose={() => setOpenLine(false)}
-            onDone={(conn) => {
-              setOpenLine(false);
-              refresh();
-              // Auto-copy the webhook URL — the user's next step is to paste
-              // it into LINE, so optimize for that flow.
-              if (conn.webhook_url && navigator.clipboard) {
-                navigator.clipboard.writeText(conn.webhook_url).then(
-                  () => showToast('LINE connected — webhook URL copied to clipboard', 'success'),
-                  () => showToast('LINE connected', 'success'),
-                );
-              } else {
-                showToast('LINE connected', 'success');
-              }
-            }}
-          />
-        )}
-        {pickerState && (
-          <FacebookPagePicker
-            state={pickerState}
-            onClose={() => setPickerState(null)}
-            onDone={(n) => {
-              setPickerState(null);
-              refresh();
-              showToast(`${n} Facebook page${n === 1 ? '' : 's'} connected`, 'success');
-            }}
-          />
-        )}
       </PageBody>
     </AppShell>
   );
 }
 
 // ── ProviderSection ────────────────────────────────────────────────────
-//
-// Renders one provider's header (name + usage badge + connect button) and
-// the list of connections beneath. Empty state shows a hint card.
 
 function ProviderSection({
   spec,
@@ -221,6 +269,7 @@ function ProviderSection({
   onConnect,
   onDisconnect,
   connectBusy,
+  inlinePanel,
 }: {
   spec: ProviderSpec;
   connections: ChannelConnection[];
@@ -229,13 +278,14 @@ function ProviderSection({
   onConnect: () => void;
   onDisconnect: (c: ChannelConnection) => void;
   connectBusy?: boolean;
+  inlinePanel?: React.ReactNode;
 }) {
   const t = useT();
   const Logo = spec.Logo;
   const atLimit = used >= limit;
   return (
     <section>
-      {/* Header — wraps on very small screens so the button never gets squished */}
+      {/* Header */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', spec.bg, spec.fg)}>
@@ -259,20 +309,25 @@ function ProviderSection({
         </Button>
       </div>
 
-      {connections.length === 0 ? (
+      {connections.length === 0 && !inlinePanel ? (
         <div className="rounded-2xl border border-dashed border-line2 bg-card p-6 text-center text-sm text-ink-faint">
           {t('common.notConnected')}
         </div>
-      ) : (
+      ) : connections.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {connections.map((c) => (
             <ConnectionCard key={c.id} conn={c} onDisconnect={() => onDisconnect(c)} />
           ))}
         </div>
-      )}
+      ) : null}
+
+      {/* Inline picker/form — rendered inside this section's box */}
+      {inlinePanel && <div className="mt-3">{inlinePanel}</div>}
     </section>
   );
 }
+
+// ── ConnectionCard ─────────────────────────────────────────────────────
 
 function ConnectionCard({
   conn,
@@ -284,13 +339,10 @@ function ConnectionCard({
   const t = useT();
   const showToast = useUI((s) => s.showToast);
   const ok = conn.status === 'active';
-  // LINE customers will want to re-copy this from time to time when they
-  // re-configure their channel. Surface it on the card so they don't have
-  // to re-run the connect flow.
   const showWebhook = conn.provider === 'line' && !!conn.webhook_url;
   return (
     <div className="flex flex-col rounded-2xl border border-line2 bg-card p-4 transition-shadow hover:shadow-card-hover">
-      {/* Name + status badge — wraps on very narrow cards */}
+      {/* Name + status badge */}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-bold text-ink">{conn.display_name || conn.external_id}</h3>
@@ -309,13 +361,15 @@ function ConnectionCard({
         </span>
       </div>
       {conn.error && <p className="mt-2 text-xs text-red-500">{conn.error}</p>}
+
+      {/* Webhook URL — stacks vertically on mobile, side-by-side on wider screens */}
       {showWebhook && (
         <div className="mt-3">
           <div className="mb-1 text-[11px] font-medium text-ink-faint">Webhook URL</div>
-          <div className="flex items-stretch gap-2">
-            <code className="min-w-0 flex-1 truncate rounded-md border border-line2 bg-page px-2 py-1.5 text-[11px] text-ink">
-              {conn.webhook_url}
-            </code>
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+            <div className="min-w-0 flex-1 overflow-hidden rounded-md border border-line2 bg-page px-2 py-1.5">
+              <code className="block truncate text-[11px] text-ink">{conn.webhook_url}</code>
+            </div>
             <button
               type="button"
               onClick={() =>
@@ -324,14 +378,15 @@ function ConnectionCard({
                   () => showToast('Copy failed', 'default'),
                 )
               }
-              className="shrink-0 rounded-md border border-line2 px-2 py-1 text-[11px] font-bold text-brand-600 hover:bg-brand-soft/40"
+              className="shrink-0 self-stretch rounded-md border border-line2 px-3 py-1.5 text-[11px] font-bold text-brand-600 hover:bg-brand-soft/40 sm:self-auto"
             >
               Copy
             </button>
           </div>
         </div>
       )}
-      {/* Push disconnect button to the bottom of the card */}
+
+      {/* Disconnect */}
       <div className="mt-auto pt-3">
         <Button size="sm" variant="danger" fullWidth onClick={onDisconnect}>
           {t('common.disconnect')}
@@ -355,9 +410,6 @@ function ConnectLine({
   const [channelId, setChannelId] = useState('');
   const [secret, setSecret] = useState('');
   const [busy, setBusy] = useState(false);
-  // Live URL preview: the backend tells us the template, we substitute the
-  // channel id the user is typing. Renders the same URL the connection will
-  // get assigned when they save.
   const [template, setTemplate] = useState<string>('/webhooks/line/{channel_id}');
 
   useEffect(() => {
@@ -367,10 +419,7 @@ function ConnectLine({
       .catch(() => {});
   }, []);
 
-  const previewUrl = template.replace(
-    '{channel_id}',
-    channelId.trim() || 'YOUR_CHANNEL_ID',
-  );
+  const previewUrl = template.replace('{channel_id}', channelId.trim() || 'YOUR_CHANNEL_ID');
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -386,14 +435,8 @@ function ConnectLine({
     }
   }
 
-  function copy(text: string, label = 'URL') {
-    navigator.clipboard.writeText(text).then(() => {
-      showToast(`${label} copied`, 'success');
-    });
-  }
-
   return (
-    <Card className="mt-6">
+    <Card>
       <CardHeader
         icon={<MessageCircle className="h-4 w-4 text-line" />}
         title={t('channels.connect.line')}
@@ -404,7 +447,7 @@ function ConnectLine({
         }
       />
 
-      {/* Step 1 — get values from LINE */}
+      {/* Step 1 */}
       <div className="mb-5">
         <div className="mb-2 flex items-center gap-2">
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[11px] font-bold text-white">1</span>
@@ -448,15 +491,22 @@ function ConnectLine({
           LINE Developers → Messaging API → <span className="font-medium">Webhook URL</span>.
           Paste the URL below, hit Update, then turn <span className="font-medium">Use webhook</span> ON.
         </p>
-        <div className="ml-7 flex items-stretch gap-2">
-          <code className="flex-1 truncate rounded-lg border border-line2 bg-page px-3 py-2 text-[12px] text-ink">
-            {previewUrl}
-          </code>
+        {/* URL row: stacks on mobile, side-by-side on sm+ */}
+        <div className="ml-7 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+          <div className="min-w-0 flex-1 overflow-hidden rounded-lg border border-line2 bg-page px-3 py-2">
+            <code className="block truncate text-[12px] text-ink">{previewUrl}</code>
+          </div>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => copy(previewUrl, 'Webhook URL')}
+            className="shrink-0"
+            onClick={() =>
+              navigator.clipboard.writeText(previewUrl).then(
+                () => showToast('Webhook URL copied', 'success'),
+                () => showToast('Copy failed', 'default'),
+              )
+            }
           >
             Copy
           </Button>
@@ -466,11 +516,51 @@ function ConnectLine({
   );
 }
 
+// ── Shared picker item ─────────────────────────────────────────────────
+
+function PickerItem({
+  label,
+  sub,
+  checked,
+  onToggle,
+}: {
+  label: string;
+  sub: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={cn(
+        'flex w-full items-center justify-between rounded-xl border p-3 text-left transition-colors',
+        checked
+          ? 'border-brand-400 bg-brand-soft/50 dark:border-brand-500'
+          : 'border-line2 bg-card hover:bg-page',
+      )}
+    >
+      <div className="min-w-0">
+        <div className="truncate text-sm font-bold text-ink">{label}</div>
+        <div className="truncate text-[11px] text-ink-faint">{sub}</div>
+      </div>
+      <span
+        className={cn(
+          'ml-3 h-5 w-5 shrink-0 rounded border-2',
+          checked ? 'border-brand-500 bg-brand-500' : 'border-line2',
+        )}
+      >
+        {checked && (
+          <svg viewBox="0 0 16 16" className="h-full w-full" fill="none">
+            <path d="M3 8.5l3.5 3L13 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+    </button>
+  );
+}
+
 // ── Facebook page picker ───────────────────────────────────────────────
-//
-// Shown after the OAuth callback redirected the browser back here with
-// ?fb_oauth=ok&state=.... Lists the user's manageable pages so they can
-// choose which ones to connect (subject to plan limits).
 
 function FacebookPagePicker({
   state,
@@ -481,29 +571,22 @@ function FacebookPagePicker({
   onClose: () => void;
   onDone: (count: number) => void;
 }) {
-  const t = useT();
   const [pages, setPages] = useState<{ id: string; name: string; category?: string }[] | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    api.channels.facebook
-      .oauthPages(state)
-      .then((r) => {
-        if (!cancelled) setPages(r.pages);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+    api.channels.facebook.oauthPages(state).then((r) => {
+      if (!cancelled) setPages(r.pages);
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, [state]);
 
   function toggle(id: string) {
     setPicked((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   }
@@ -520,7 +603,7 @@ function FacebookPagePicker({
   }
 
   return (
-    <Card className="mt-6">
+    <Card>
       <CardHeader
         icon={<Facebook className="h-4 w-4 text-fb" />}
         title="Choose Facebook pages to connect"
@@ -533,61 +616,109 @@ function FacebookPagePicker({
       {!pages && <p className="text-sm text-ink-faint">Loading pages…</p>}
       {pages && pages.length === 0 && (
         <p className="text-sm text-ink-faint">
-          No pages found on this Facebook account. Make sure you grant access to at least one page.
+          No pages found. Make sure you grant access to at least one page.
         </p>
       )}
       {pages && pages.length > 0 && (
         <ul className="space-y-2">
-          {pages.map((p) => {
-            const on = picked.has(p.id);
-            return (
-              <li key={p.id}>
-                <button
-                  type="button"
-                  onClick={() => toggle(p.id)}
-                  className={cn(
-                    'flex w-full items-center justify-between rounded-xl border p-3 text-left transition-colors',
-                    on
-                      ? 'border-brand-400 bg-brand-soft/50 dark:border-brand-500'
-                      : 'border-line2 bg-card hover:bg-page',
-                  )}
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-bold text-ink">{p.name}</div>
-                    <div className="truncate text-[11px] text-ink-faint">
-                      {p.category ?? p.id}
-                    </div>
-                  </div>
-                  <span
-                    className={cn(
-                      'h-5 w-5 shrink-0 rounded border-2',
-                      on
-                        ? 'border-brand-500 bg-brand-500 text-white'
-                        : 'border-line2',
-                    )}
-                  >
-                    {on && (
-                      <svg viewBox="0 0 16 16" className="h-full w-full" fill="none">
-                        <path
-                          d="M3 8.5l3.5 3L13 5"
-                          stroke="white"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
+          {pages.map((p) => (
+            <li key={p.id}>
+              <PickerItem
+                label={p.name}
+                sub={p.category ?? p.id}
+                checked={picked.has(p.id)}
+                onToggle={() => toggle(p.id)}
+              />
+            </li>
+          ))}
         </ul>
       )}
       <div className="mt-4 flex justify-end gap-2">
-        <Button variant="outline" size="sm" onClick={onClose}>
-          Cancel
+        <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+        <Button size="sm" onClick={submit} disabled={busy || picked.size === 0}>
+          {busy ? '…' : `Connect ${picked.size || ''}`}
         </Button>
+      </div>
+    </Card>
+  );
+}
+
+// ── Instagram account picker ───────────────────────────────────────────
+
+function InstagramAccountPicker({
+  state,
+  onClose,
+  onDone,
+}: {
+  state: string;
+  onClose: () => void;
+  onDone: (count: number) => void;
+}) {
+  const [accounts, setAccounts] = useState<{ igid: string; name: string; username?: string }[] | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.channels.instagram.oauthAccounts(state).then((r) => {
+      if (!cancelled) setAccounts(r.accounts);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [state]);
+
+  function toggle(igid: string) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      next.has(igid) ? next.delete(igid) : next.add(igid);
+      return next;
+    });
+  }
+
+  async function submit() {
+    if (picked.size === 0) return;
+    setBusy(true);
+    try {
+      const r = await api.channels.instagram.oauthConnect(state, [...picked]);
+      onDone(r.connections.length);
+    } catch {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        icon={<Instagram className="h-4 w-4 text-pink-500" />}
+        title="Choose Instagram accounts to connect"
+        action={
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
+            <XIcon className="h-4 w-4" />
+          </Button>
+        }
+      />
+      {!accounts && <p className="text-sm text-ink-faint">Loading accounts…</p>}
+      {accounts && accounts.length === 0 && (
+        <p className="text-sm text-ink-faint">
+          No Instagram Business Accounts found. Make sure your Instagram is a Business or Creator
+          account linked to a Facebook Page you manage.
+        </p>
+      )}
+      {accounts && accounts.length > 0 && (
+        <ul className="space-y-2">
+          {accounts.map((a) => (
+            <li key={a.igid}>
+              <PickerItem
+                label={a.name}
+                sub={a.username ? `@${a.username}` : a.igid}
+                checked={picked.has(a.igid)}
+                onToggle={() => toggle(a.igid)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
         <Button size="sm" onClick={submit} disabled={busy || picked.size === 0}>
           {busy ? '…' : `Connect ${picked.size || ''}`}
         </Button>
