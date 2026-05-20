@@ -420,7 +420,8 @@ export type ReferralSettings = {
   first_commission_amount: number;   // satang
   recurring_commission_amount: number; // satang
   discount_percent: number;          // 0–100
-  discount_duration_months: number;
+  discount_type: 'first_purchase' | 'duration'; // default: first_purchase
+  discount_duration_months: number;  // only used when discount_type === 'duration'
   default_payout_type: 'manual' | 'credit';
   updated_at?: string;
 };
@@ -865,6 +866,20 @@ export const api = {
             method: 'POST',
             body: JSON.stringify({ state, ig_ids }),
           },
+        ),
+    },
+
+    web: {
+      /** Create a web widget connection. Returns widget_id + ready embed code. */
+      connect: (input: {
+        display_name?: string;
+        bot_name?: string;
+        greeting_message?: string;
+        accent_color?: string;
+      } = {}) =>
+        request<{ connection: ChannelConnection; widget_id: string; embed_code: string }>(
+          '/api/v1/channels/web',
+          { method: 'POST', body: JSON.stringify(input) },
         ),
     },
   },

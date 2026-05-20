@@ -14,6 +14,7 @@ import { useT } from "@/lib/i18n/useT";
 import {
   api,
   type ReferralCode,
+  type ReferralSettings,
   type ReferralStats,
   type ReferralWallet,
   type WalletTransaction,
@@ -77,6 +78,7 @@ export default function ReferralPage() {
   const [wallet, setWallet] = useState<ReferralWallet | null>(null);
   const [txns, setTxns] = useState<WalletTransaction[]>([]);
   const [payoutRequests, setPayoutRequests] = useState<PayoutRequest[]>([]);
+  const [refSettings, setRefSettings] = useState<ReferralSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -99,11 +101,12 @@ export default function ReferralPage() {
     async function load() {
       setLoading(true);
       try {
-        const [c, s, w, pr] = await Promise.all([
+        const [c, s, w, pr, rs] = await Promise.all([
           api.referral.code(),
           api.referral.stats(),
           api.referral.wallet(),
           api.referral.myPayoutRequests(),
+          api.adminReferral.settings().catch(() => null),
         ]);
         if (!alive) return;
         setCodeData(c);
@@ -111,6 +114,7 @@ export default function ReferralPage() {
         setWallet(w.wallet);
         setTxns(w.transactions);
         setPayoutRequests(pr);
+        if (rs) setRefSettings(rs);
       } finally {
         if (alive) setLoading(false);
       }
@@ -138,16 +142,34 @@ export default function ReferralPage() {
   }
 
   function openPayoutDialog() {
-    setBankSelect("");
-    setForm({
-      bank_name: "",
-      account_number: "",
-      account_name: "",
-      tax_id: "",
-      full_name: "",
-      address: "",
-      consent_given: false,
-    });
+    // Pre-fill from the most recent past request so the user doesn't have to
+    // re-type bank / tax details. Consent is always reset — they must tick it
+    // explicitly for each new request (PDPA audit trail).
+    const last = payoutRequests[0] ?? null; // list is newest-first from API
+    if (last) {
+      const knownBank = THAI_BANKS.includes(last.bank_name);
+      setBankSelect(knownBank ? last.bank_name : "อื่นๆ");
+      setForm({
+        bank_name: last.bank_name,
+        account_number: last.account_number,
+        account_name: last.account_name,
+        tax_id: last.tax_id,
+        full_name: last.full_name,
+        address: last.address,
+        consent_given: false, // always require fresh consent
+      });
+    } else {
+      setBankSelect("");
+      setForm({
+        bank_name: "",
+        account_number: "",
+        account_name: "",
+        tax_id: "",
+        full_name: "",
+        address: "",
+        consent_given: false,
+      });
+    }
     setPayoutDialog(true);
   }
 
@@ -224,7 +246,17 @@ export default function ReferralPage() {
                 <div className="mt-5 rounded-xl bg-muted p-4 text-sm text-ink-muted">
                   <p className="font-semibold text-ink">วิธีการทำงาน</p>
                   <ul className="mt-2 space-y-1 list-disc list-inside">
-                    <li>เพื่อนสมัครด้วยรหัสของคุณ → ได้ส่วนลด 10% นาน 1 ปี</li>
+                    <li>
+                      {(() => {
+                        const pct = refSettings?.discount_percent ?? 10;
+                        const type = refSettings?.discount_type ?? 'first_purchase';
+                        if (type === 'duration') {
+                          const months = refSettings?.discount_duration_months ?? 1;
+                          return `เพื่อนสมัครด้วยรหัสของคุณ → ได้ส่วนลด ${pct}% นาน ${months} เดือน`;
+                        }
+                        return `เพื่อนสมัครด้วยรหัสของคุณ → ได้ส่วนลด ${pct}% สำหรับการชำระครั้งแรกเท่านั้น`;
+                      })()}
+                    </li>
                     <li>คุณได้รับ ฿100 เมื่อเพื่อนชำระครั้งแรก</li>
                     <li>คุณได้รับ ฿50 ทุกเดือนที่เพื่อนต่ออายุ</li>
                   </ul>

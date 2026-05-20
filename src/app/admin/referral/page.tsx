@@ -215,17 +215,53 @@ export default function AdminReferralPage() {
                       })
                     }
                   />
-                  <SettingsField
-                    label="ระยะเวลาส่วนลด (เดือน)"
-                    hint="จำนวนเดือนที่ส่วนลดมีผล"
-                    value={settings.discount_duration_months.toString()}
-                    onChange={(v) =>
-                      setSettings({
-                        ...settings,
-                        discount_duration_months: Math.max(0, parseInt(v) || 0),
-                      })
-                    }
-                  />
+                  <div>
+                    <p className="mb-1 text-sm font-medium text-ink">ประเภทส่วนลด</p>
+                    <div className="flex flex-col gap-2">
+                      <label className="flex cursor-pointer items-start gap-2">
+                        <input
+                          type="radio"
+                          name="discount_type"
+                          value="first_purchase"
+                          checked={(settings.discount_type || 'first_purchase') === 'first_purchase'}
+                          onChange={() => setSettings({ ...settings, discount_type: 'first_purchase' })}
+                          className="mt-0.5 accent-indigo-600"
+                        />
+                        <span className="text-sm text-ink">
+                          <span className="font-medium">ครั้งแรกเท่านั้น</span>
+                          <span className="ml-1 text-ink-muted">— ส่วนลดหมดอายุทันทีหลังชำระครั้งแรก</span>
+                        </span>
+                      </label>
+                      <label className="flex cursor-pointer items-start gap-2">
+                        <input
+                          type="radio"
+                          name="discount_type"
+                          value="duration"
+                          checked={settings.discount_type === 'duration'}
+                          onChange={() => setSettings({ ...settings, discount_type: 'duration' })}
+                          className="mt-0.5 accent-indigo-600"
+                        />
+                        <span className="text-sm text-ink">
+                          <span className="font-medium">ตามระยะเวลา</span>
+                          <span className="ml-1 text-ink-muted">— ส่วนลดมีผลตามจำนวนเดือนที่กำหนด (รวมการต่ออายุ)</span>
+                        </span>
+                      </label>
+                    </div>
+                    <p className="mt-1 text-[12px] text-ink-muted">ส่งผลกับผู้สมัครใหม่เท่านั้น ไม่กระทบผู้ใช้ปัจจุบัน</p>
+                  </div>
+                  {settings.discount_type === 'duration' && (
+                    <SettingsField
+                      label="ระยะเวลาส่วนลด (เดือน)"
+                      hint="จำนวนเดือนที่ส่วนลดมีผล (เฉพาะโหมดตามระยะเวลา)"
+                      value={settings.discount_duration_months.toString()}
+                      onChange={(v) =>
+                        setSettings({
+                          ...settings,
+                          discount_duration_months: Math.max(1, parseInt(v) || 1),
+                        })
+                      }
+                    />
+                  )}
                 </div>
 
                 {/* Default payout type */}

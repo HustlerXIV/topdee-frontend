@@ -16,7 +16,7 @@ import { Package, Plus, Pencil, Trash2, Info } from '@/components/ui/Icon';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
-const KNOWN_PROVIDERS = ['facebook', 'line', 'instagram', 'shopee', 'lazada'];
+const KNOWN_PROVIDERS = ['facebook', 'line', 'instagram', 'web', 'shopee', 'lazada'];
 
 function fmtLimit(n: number) {
   return n === -1 ? '∞' : n.toLocaleString();

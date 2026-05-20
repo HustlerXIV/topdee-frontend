@@ -33,10 +33,12 @@ import {
   MessageCircle,
   Facebook,
   Instagram,
+  Globe,
+  Copy,
   X as XIcon,
 } from '@/components/ui/Icon';
 
-type ProviderKey = 'facebook' | 'instagram' | 'line';
+type ProviderKey = 'facebook' | 'instagram' | 'line' | 'web';
 
 type ProviderSpec = {
   id: ProviderKey;
@@ -68,6 +70,13 @@ const PROVIDERS: ProviderSpec[] = [
     bg: 'bg-line-soft dark:bg-emerald-900/40',
     fg: 'text-line dark:text-emerald-300',
   },
+  {
+    id: 'web',
+    name: 'Website Chat Widget',
+    Logo: Globe,
+    bg: 'bg-violet-50 dark:bg-violet-900/30',
+    fg: 'text-violet-600 dark:text-violet-300',
+  },
 ];
 
 export default function ChannelsPage() {
@@ -84,6 +93,8 @@ export default function ChannelsPage() {
   const [igPickerState, setIGPickerState] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [igBusy, setIGBusy] = useState(false);
+  // Stores the embed code after a web widget connection is created
+  const [webEmbedCode, setWebEmbedCode] = useState<string | null>(null);
 
   // ── Load connections on mount, and react to OAuth redirect query params.
   // We read window.location directly instead of useSearchParams so the page
@@ -157,6 +168,7 @@ export default function ChannelsPage() {
     setOpenProvider(null);
     setPickerState(null);
     setIGPickerState(null);
+    setWebEmbedCode(null);
   }
 
   // Group connections by provider.
@@ -238,6 +250,24 @@ export default function ChannelsPage() {
                     }}
                   />
                 );
+              } else if (p.id === 'web') {
+                inlinePanel = (
+                  <ConnectWeb
+                    embedCode={webEmbedCode}
+                    existingConns={conns}
+                    onClose={closePanel}
+                    onConnect={async (opts) => {
+                      try {
+                        const r = await api.channels.web.connect(opts);
+                        setWebEmbedCode(r.embed_code);
+                        refresh();
+                        showToast('Website widget created!', 'success');
+                      } catch (e) {
+                        showToast(e instanceof ApiError ? e.message : 'connect failed', 'default');
+                      }
+                    }}
+                  />
+                );
               }
             }
 
@@ -257,6 +287,7 @@ export default function ChannelsPage() {
                   if (p.id === 'facebook') startFacebookOAuth();
                   else if (p.id === 'instagram') startInstagramOAuth();
                   else if (p.id === 'line') setOpenProvider('line');
+                  else if (p.id === 'web') setOpenProvider('web');
                 }}
                 connectBusy={(p.id === 'facebook' && busy) || (p.id === 'instagram' && igBusy)}
                 inlinePanel={inlinePanel}
@@ -522,6 +553,129 @@ function ConnectLine({
           </Button>
         </div>
       </div>
+    </Card>
+  );
+}
+
+// ── Connect Web Widget ─────────────────────────────────────────────────
+
+function ConnectWeb({
+  embedCode,
+  existingConns,
+  onClose,
+  onConnect,
+}: {
+  embedCode: string | null;
+  existingConns: ChannelConnection[];
+  onClose: () => void;
+  onConnect: (opts: { display_name?: string; bot_name?: string; greeting_message?: string }) => Promise<void>;
+}) {
+  const showToast = useUI((s) => s.showToast);
+  const [displayName, setDisplayName] = useState('');
+  const [botName, setBotName] = useState('');
+  const [greeting, setGreeting] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // If the tenant already has web connections, show their embed codes.
+  const existingWeb = existingConns.filter((c) => c.provider === 'web');
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await onConnect({ display_name: displayName.trim() || undefined, bot_name: botName.trim() || undefined, greeting_message: greeting.trim() || undefined });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function copyCode(code: string) {
+    navigator.clipboard.writeText(code).then(
+      () => showToast('Embed code copied!', 'success'),
+      () => showToast('Copy failed', 'default'),
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        icon={<Globe className="h-4 w-4 text-violet-600" />}
+        title="Website Chat Widget"
+        action={
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
+            <XIcon className="h-4 w-4" />
+          </Button>
+        }
+      />
+
+      {/* Show newly-created embed code */}
+      {embedCode && (
+        <div className="mb-5 rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-800/40 dark:bg-violet-950/30">
+          <p className="mb-2 text-sm font-semibold text-violet-800 dark:text-violet-300">
+            ✓ Widget created — paste this snippet before <code className="text-xs">&lt;/body&gt;</code> on your site:
+          </p>
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+            <div className="min-w-0 flex-1 overflow-hidden rounded-lg border border-violet-200 bg-white px-3 py-2 dark:border-violet-700 dark:bg-violet-900/20">
+              <code className="block truncate text-[12px] text-ink">{embedCode}</code>
+            </div>
+            <Button variant="outline" size="sm" className="shrink-0" onClick={() => copyCode(embedCode)}>
+              <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Show embed codes of existing connections */}
+      {existingWeb.length > 0 && !embedCode && (
+        <div className="mb-5 space-y-3">
+          <p className="text-sm font-semibold text-ink">Existing widgets</p>
+          {existingWeb.map((c) => {
+            const code = `<script src="${window.location.origin}/widget.js" data-widget-id="${c.external_id}"></script>`;
+            return (
+              <div key={c.id} className="rounded-xl border border-line2 bg-page p-3">
+                <p className="mb-1.5 text-xs font-semibold text-ink">{c.display_name}</p>
+                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+                  <div className="min-w-0 flex-1 overflow-hidden rounded-lg border border-line2 bg-card px-3 py-2">
+                    <code className="block truncate text-[11px] text-ink">{code}</code>
+                  </div>
+                  <Button variant="outline" size="sm" className="shrink-0" onClick={() => copyCode(code)}>
+                    <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create new widget form */}
+      <form onSubmit={submit} className="space-y-3">
+        <p className="text-sm font-semibold text-ink">Create a new widget</p>
+        <FormGroup label="Widget name (internal)">
+          <Input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="My Website"
+          />
+        </FormGroup>
+        <FormGroup label="Bot display name (shown to visitors)">
+          <Input
+            value={botName}
+            onChange={(e) => setBotName(e.target.value)}
+            placeholder="Aria"
+          />
+        </FormGroup>
+        <FormGroup label="Greeting message">
+          <Input
+            value={greeting}
+            onChange={(e) => setGreeting(e.target.value)}
+            placeholder="Hi! How can I help you today?"
+          />
+        </FormGroup>
+        <Button type="submit" disabled={busy}>
+          {busy ? '…' : 'Create widget'}
+        </Button>
+      </form>
     </Card>
   );
 }
