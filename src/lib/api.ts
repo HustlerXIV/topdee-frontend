@@ -268,6 +268,9 @@ export type BillingInfo = {
   has_subscription: boolean;
   has_stripe_customer: boolean;
   usage: BillingUsage;
+  /** > 0 when the tenant has an active referral discount, e.g. 10 = 10% */
+  referral_discount_percent?: number;
+  referral_discount_expires_at?: string;
 };
 
 // ── Analytics ────────────────────────────────────────────────────────
@@ -428,6 +431,44 @@ export type AdminReferralRow = Referral & {
 
 export type AdminWalletRow = ReferralWallet & {
   tenant_name: string;
+};
+
+export type PayoutRequest = {
+  id: string;
+  tenant_id: string;
+  amount: number; // satang
+  // Bank details
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+  // Tax details
+  tax_id: string;
+  full_name: string;
+  address: string;
+  // PDPA consent
+  consent_given: boolean;
+  consent_at: string;
+  // Status
+  status: 'pending' | 'approved' | 'rejected';
+  approved_by?: string;
+  approved_at?: string;
+  admin_note?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminPayoutRequestRow = PayoutRequest & {
+  tenant_name: string;
+};
+
+export type SubmitPayoutRequestBody = {
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+  tax_id: string;
+  full_name: string;
+  address: string;
+  consent_given: boolean;
 };
 
 export class ApiError extends Error {
@@ -876,12 +917,14 @@ export const api = {
     stats: () => request<ReferralStats>('/api/v1/referral'),
     /** Wallet balance + last 50 transactions. */
     wallet: () => request<{ wallet: ReferralWallet; transactions: WalletTransaction[] }>('/api/v1/referral/wallet'),
-    /** Request payout (manual or credit). */
-    requestPayout: (payout_type?: 'manual' | 'credit') =>
-      request<{ ok: boolean; type: string; amount: number; message: string }>('/api/v1/referral/wallet/payout', {
-        method: 'POST',
-        body: JSON.stringify({ payout_type }),
-      }),
+    /** Submit a bank-transfer payout request with bank + tax details + PDPA consent. */
+    submitPayoutRequest: (body: SubmitPayoutRequestBody) =>
+      request<{ ok: boolean; amount: number; request: PayoutRequest; message: string }>(
+        '/api/v1/referral/wallet/payout-request',
+        { method: 'POST', body: JSON.stringify(body) },
+      ),
+    /** My payout request history. */
+    myPayoutRequests: () => request<PayoutRequest[]>('/api/v1/referral/wallet/payout-requests'),
   },
 
   adminReferral: {
@@ -902,6 +945,21 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ payout_type }),
       }),
+    /** All payout requests, optionally filtered: status=pending|approved|rejected */
+    payoutRequests: (status?: string) =>
+      request<AdminPayoutRequestRow[]>(
+        `/api/v1/admin/referral/payout-requests${status ? `?status=${status}` : ''}`,
+      ),
+    approvePayoutRequest: (id: string, admin_note?: string) =>
+      request<{ ok: boolean; amount: number }>(
+        `/api/v1/admin/referral/payout-requests/${encodeURIComponent(id)}/approve`,
+        { method: 'POST', body: JSON.stringify({ admin_note: admin_note ?? '' }) },
+      ),
+    rejectPayoutRequest: (id: string, admin_note?: string) =>
+      request<{ ok: boolean; refunded: number }>(
+        `/api/v1/admin/referral/payout-requests/${encodeURIComponent(id)}/reject`,
+        { method: 'POST', body: JSON.stringify({ admin_note: admin_note ?? '' }) },
+      ),
   },
 
   playground: {

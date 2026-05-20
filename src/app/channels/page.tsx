@@ -180,8 +180,18 @@ export default function ChannelsPage() {
           {PROVIDERS.map((p) => {
             const conns = byProvider[p.id] ?? [];
             const used = data?.used?.[p.id] ?? 0;
-            const limit = data?.limits?.[p.id] ?? 1;
-            const atLimit = used >= limit;
+            // Use 0 as fallback (not 1): a missing key means the provider
+            // is not on this plan. While data is still loading (data===null),
+            // the optional-chain returns undefined → 0 → we hide the section,
+            // but we show a skeleton instead (see below).
+            const limit = data?.limits?.[p.id] ?? 0;
+
+            // Hide providers that the plan doesn't include (limit === 0),
+            // but only once the API response has arrived. While loading we
+            // render all sections as skeletons so there's no layout shift.
+            if (data !== null && limit === 0) return null;
+
+            const atLimit = used >= limit && limit !== -1;
 
             // The inline panel rendered inside this provider's section.
             let inlinePanel: React.ReactNode = null;
@@ -282,7 +292,7 @@ function ProviderSection({
 }) {
   const t = useT();
   const Logo = spec.Logo;
-  const atLimit = used >= limit;
+  const atLimit = limit !== -1 && used >= limit;
   return (
     <section>
       {/* Header */}
@@ -294,7 +304,7 @@ function ProviderSection({
           <div>
             <h2 className="text-base font-bold text-ink">{spec.name}</h2>
             <p className="text-xs text-ink-faint">
-              {used} / {limit} {t('common.connected').toLowerCase()}
+              {used}{limit !== -1 ? ` / ${limit}` : ''} {t('common.connected').toLowerCase()}
             </p>
           </div>
         </div>
