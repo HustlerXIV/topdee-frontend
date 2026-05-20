@@ -26,6 +26,7 @@ function LoginPageInner() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [tenantName, setTenantName] = useState("");
+  const [referralCode, setReferralCode] = useState(search?.get("ref") ?? "");
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -52,7 +53,7 @@ function LoginPageInner() {
     e.preventDefault();
     setBusy(true);
     try {
-      const { token, user } = await api.register(tenantName, email, password);
+      const { token, user } = await api.register(tenantName, email, password, referralCode.trim() || undefined);
       setSession(token, {
         name: user.name,
         email: user.email || email,
@@ -174,6 +175,14 @@ function LoginPageInner() {
               placeholder={t("auth.passwordHint")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+            />
+            {/* Optional referral code */}
+            <Input
+              type="text"
+              placeholder={t("auth.referralCode")}
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+              autoCapitalize="characters"
             />
             {/* Privacy Policy checkbox — required before submitting */}
             <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-line2 bg-muted px-3 py-2.5">

@@ -13,6 +13,7 @@ import {
   Building2,
   Users,
   Package,
+  Gift,
   ArrowLeft,
   Menu,
   X,
@@ -56,6 +57,7 @@ const NAV = [
   { href: '/admin/tenants', icon: Building2, label: 'Tenants' },
   { href: '/admin/users', icon: Users, label: 'Users' },
   { href: '/admin/plans', icon: Package, label: 'Plans' },
+  { href: '/admin/referral', icon: Gift, label: 'Referral' },
 ];
 
 function navIsActive(pathname: string, href: string, exact?: boolean) {

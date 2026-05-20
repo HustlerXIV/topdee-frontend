@@ -16,7 +16,7 @@ import { Package, Plus, Pencil, Trash2, Info } from '@/components/ui/Icon';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
-const KNOWN_PROVIDERS = ['facebook', 'line', 'instagram', 'shopee', 'lazada'];
+const KNOWN_PROVIDERS = ['facebook', 'line', 'instagram', 'web', 'shopee', 'lazada'];
 
 function fmtLimit(n: number) {
   return n === -1 ? '∞' : n.toLocaleString();
@@ -552,7 +552,7 @@ function PlanCard({
 
       {/* Limits table */}
       <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
-        {Object.entries(plan.limits.channels).map(([provider, n]) => (
+        {Object.entries(plan.limits.channels).filter(([, n]) => n !== 0).map(([provider, n]) => (
           <div key={provider} className="flex justify-between border-b border-line2 py-1">
             <span className="capitalize text-ink-faint">{provider}</span>
             <span className="font-medium text-ink">{fmtLimit(n)} ch</span>

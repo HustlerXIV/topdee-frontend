@@ -111,6 +111,7 @@ import {
   Package,
   Link as LinkIcon,
   QrCode,
+  Gift,
   type LucideIcon as _LucideIconType,
 } from 'lucide-react';
 
@@ -225,6 +226,7 @@ export const ICONS = {
   money: DollarSign,
   link: LinkIcon,
   qr: QrCode,
+  referral: Gift,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;
@@ -328,4 +330,5 @@ export {
   Package,
   LinkIcon,
   QrCode,
+  Gift,
 };

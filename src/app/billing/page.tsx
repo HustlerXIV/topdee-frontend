@@ -27,6 +27,7 @@ import {
   ArrowRight,
   Trash2,
   QrCode,
+  Gift,
 } from "@/components/ui/Icon";
 import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
 
@@ -135,7 +136,7 @@ function planFeatures(p: Plan, unlimited: string) {
     items.push(
       storage === -1
         ? `${unlimited} storage`
-        : `${storage >= 1024 ? `${storage / 1024} GB` : `${storage} MB`} storage`,
+        : `${storage >= 1024 ? `${Math.round(storage / 1024)} GB` : `${storage} MB`} storage`,
     );
   }
 
@@ -342,6 +343,8 @@ export default function BillingPage() {
   const sub = info?.subscription;
   const plan = info?.plan;
   const usage = info?.usage;
+  const discountPct = info?.referral_discount_percent ?? 0;
+  const discountExpiresAt = info?.referral_discount_expires_at;
 
   const msgLimit = plan?.limits?.messages_per_month ?? 0; // -1 = unlimited
   const memberLimit = plan?.limits?.members ?? 0; // -1 = unlimited
@@ -552,6 +555,21 @@ export default function BillingPage() {
           </div>
         )}
 
+        {/* ── Referral discount notice ──────────────────────────────── */}
+        {discountPct > 0 && (
+          <div className="mb-4 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800/40 dark:bg-green-950/30 dark:text-green-300">
+            <Gift className="h-4 w-4 shrink-0" />
+            <span>
+              {discountExpiresAt
+                ? t("billing.referral.discountActive")
+                    .replace("{pct}", String(discountPct))
+                    .replace("{date}", fmtDate(discountExpiresAt))
+                : t("billing.referral.discountNoDate")
+                    .replace("{pct}", String(discountPct))}
+            </span>
+          </div>
+        )}
+
         {/* ── Plan upgrade grid ─────────────────────────────────────── */}
         <Card>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -638,13 +656,31 @@ export default function BillingPage() {
                   <div className="mt-1 text-3xl font-extrabold text-ink">
                     {p.price === 0
                       ? t("billing.price.free")
-                      : planPrice(p, interval)}
+                      : discountPct > 0
+                        ? (() => {
+                            const raw = eff === "year"
+                              ? (p.yearly_price ?? p.price * 12)
+                              : p.price;
+                            const discounted = Math.floor(raw * (100 - discountPct) / 100);
+                            return `฿${discounted.toLocaleString()}`;
+                          })()
+                        : planPrice(p, interval)}
                     {p.price > 0 && (
                       <span className="ml-1 text-sm font-medium text-ink-muted">
                         {planPriceSuffix(p, interval)}
                       </span>
                     )}
                   </div>
+                  {discountPct > 0 && p.price > 0 && (
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <span className="text-[12px] text-ink-faint line-through">
+                        {planPrice(p, interval)}
+                      </span>
+                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700 dark:bg-green-950/50 dark:text-green-400">
+                        Referral -{discountPct}%
+                      </span>
+                    </div>
+                  )}
                   {/* Yearly billing note */}
                   {interval === "year" && p.price > 0 && hasYearly && (
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -980,6 +1016,7 @@ export default function BillingPage() {
         <PaymentMethodDialog
           plan={paymentDialog}
           interval={interval}
+          discountPct={discountPct}
           onClose={() => setPaymentDialog(null)}
           onCard={(planId) => {
             setPaymentDialog(null);
@@ -1033,6 +1070,7 @@ export default function BillingPage() {
 function PaymentMethodDialog({
   plan,
   interval,
+  discountPct = 0,
   onClose,
   onCard,
   onPromptPay,
@@ -1042,6 +1080,7 @@ function PaymentMethodDialog({
 }: {
   plan: Plan | null;
   interval: Interval;
+  discountPct?: number;
   onClose: () => void;
   onCard: (planId: string) => void;
   onPromptPay: (planId: string) => void;
@@ -1054,12 +1093,19 @@ function PaymentMethodDialog({
   // Compute effective price label for this interval
   const eff: Interval =
     interval === "year" && plan.stripe_price_id_yearly ? "year" : "month";
+  const rawPrice = eff === "year"
+    ? (plan.yearly_price ?? plan.price * 12)
+    : plan.price;
+  const discountedPrice = discountPct > 0
+    ? Math.floor(rawPrice * (100 - discountPct) / 100)
+    : rawPrice;
+  const suffix = eff === "year" ? "/yr" : "/mo";
   const priceLabel =
     plan.price === 0
       ? t("billing.price.free")
-      : eff === "year"
-        ? `฿${(plan.yearly_price ?? plan.price * 12).toLocaleString()}/yr`
-        : `฿${plan.price.toLocaleString()}/mo`;
+      : discountPct > 0
+        ? `฿${rawPrice.toLocaleString()} → ฿${discountedPrice.toLocaleString()}${suffix} (Referral -${discountPct}%)`
+        : `฿${rawPrice.toLocaleString()}${suffix}`;
 
   const anyBusy = busyCard !== null || busyPP !== null;
 

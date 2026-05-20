@@ -48,6 +48,7 @@ export const dictionary = {
   "nav.channels": { th: "ช่องทาง", en: "Channels" },
   "nav.team": { th: "ทีม", en: "Team" },
   "nav.billing": { th: "การเงิน", en: "Billing" },
+  "nav.referral": { th: "แนะนำเพื่อน", en: "Referral" },
   "nav.settings": { th: "ตั้งค่า", en: "Settings" },
 
   // ── Landing ───────────────────────────────────────────
@@ -123,6 +124,10 @@ export const dictionary = {
   "auth.privacyPolicy": {
     th: "นโยบายความเป็นส่วนตัว",
     en: "Privacy Policy",
+  },
+  "auth.referralCode": {
+    th: "รหัสแนะนำ (ถ้ามี)",
+    en: "Referral code (optional)",
   },
 
   // ── Onboarding ────────────────────────────────────────
@@ -457,6 +462,14 @@ export const dictionary = {
   "billing.currentPlan.renews": { th: "ต่ออายุวันที่ {date}", en: "Renews on {date}" },
   "billing.currentPlan.trial": { th: "ทดลองใช้สิ้นสุดวันที่ {date}", en: "Trial ends {date}" },
   "billing.price.free": { th: "ฟรี", en: "Free" },
+  "billing.referral.discountActive": {
+    th: "คุณมีส่วนลด Referral {pct}% ถึงวันที่ {date} — ราคาด้านล่างแสดงหลังหักส่วนลดแล้ว",
+    en: "You have a {pct}% referral discount active until {date} — prices below already reflect your savings.",
+  },
+  "billing.referral.discountNoDate": {
+    th: "คุณมีส่วนลด Referral {pct}% — ราคาด้านล่างแสดงหลังหักส่วนลดแล้ว",
+    en: "You have a {pct}% referral discount — prices below already reflect your savings.",
+  },
 
   // ── Team ──────────────────────────────────────────────
   "team.title": { th: "👥 Team Members", en: "👥 Team Members" },

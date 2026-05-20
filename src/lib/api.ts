@@ -268,6 +268,9 @@ export type BillingInfo = {
   has_subscription: boolean;
   has_stripe_customer: boolean;
   usage: BillingUsage;
+  /** > 0 when the tenant has an active referral discount, e.g. 10 = 10% */
+  referral_discount_percent?: number;
+  referral_discount_expires_at?: string;
 };
 
 // ── Analytics ────────────────────────────────────────────────────────
@@ -363,6 +366,112 @@ export type BotSettings = {
   updated_at?: string;
 };
 
+// ── Referral ────────────────────────────────────────────────────────
+
+export type ReferralCode = {
+  /** The code string itself (e.g. "NAPAT26"). Also the _id. */
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  created_at: string;
+};
+
+export type Referral = {
+  id: string;
+  code: string;
+  referrer_tenant_id: string;
+  referrer_user_id: string;
+  referred_tenant_id: string;
+  referred_tenant_name: string;
+  status: 'active' | 'paused' | string;
+  commission_count: number;
+  total_earned: number; // satang
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReferralStats = {
+  total_referrals: number;
+  total_earned: number; // satang
+  referrals: Referral[];
+};
+
+export type ReferralWallet = {
+  id: string;
+  tenant_id: string;
+  balance: number; // satang
+  payout_type: 'manual' | 'credit';
+  updated_at?: string;
+};
+
+export type WalletTransaction = {
+  id: string;
+  tenant_id: string;
+  type: 'commission' | 'payout' | 'credit_applied' | string;
+  amount: number; // satang, positive=credit, negative=debit
+  referral_id?: string;
+  description: string;
+  created_at: string;
+};
+
+export type ReferralSettings = {
+  id?: string;
+  enabled: boolean;
+  first_commission_amount: number;   // satang
+  recurring_commission_amount: number; // satang
+  discount_percent: number;          // 0–100
+  discount_type: 'first_purchase' | 'duration'; // default: first_purchase
+  discount_duration_months: number;  // only used when discount_type === 'duration'
+  default_payout_type: 'manual' | 'credit';
+  updated_at?: string;
+};
+
+export type AdminReferralRow = Referral & {
+  referrer_tenant_name: string;
+};
+
+export type AdminWalletRow = ReferralWallet & {
+  tenant_name: string;
+};
+
+export type PayoutRequest = {
+  id: string;
+  tenant_id: string;
+  amount: number; // satang
+  // Bank details
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+  // Tax details
+  tax_id: string;
+  full_name: string;
+  address: string;
+  // PDPA consent
+  consent_given: boolean;
+  consent_at: string;
+  // Status
+  status: 'pending' | 'approved' | 'rejected';
+  approved_by?: string;
+  approved_at?: string;
+  admin_note?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminPayoutRequestRow = PayoutRequest & {
+  tenant_name: string;
+};
+
+export type SubmitPayoutRequestBody = {
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+  tax_id: string;
+  full_name: string;
+  address: string;
+  consent_given: boolean;
+};
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -419,10 +528,10 @@ export const api = {
   // Public — no auth required. Used by homepage and billing page.
   plans: () => request<Plan[]>('/api/v1/plans'),
 
-  register: (tenant_name: string, email: string, password: string) =>
+  register: (tenant_name: string, email: string, password: string, referral_code?: string) =>
     request<{ token: string; user: AuthUser }>('/api/v1/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ tenant_name, email, password, accepted_privacy: true }),
+      body: JSON.stringify({ tenant_name, email, password, accepted_privacy: true, referral_code: referral_code ?? '' }),
     }),
 
   login: (email: string, password: string) =>
@@ -759,6 +868,20 @@ export const api = {
           },
         ),
     },
+
+    web: {
+      /** Create a web widget connection. Returns widget_id + ready embed code. */
+      connect: (input: {
+        display_name?: string;
+        bot_name?: string;
+        greeting_message?: string;
+        accent_color?: string;
+      } = {}) =>
+        request<{ connection: ChannelConnection; widget_id: string; embed_code: string }>(
+          '/api/v1/channels/web',
+          { method: 'POST', body: JSON.stringify(input) },
+        ),
+    },
   },
 
   inbox: {
@@ -799,6 +922,58 @@ export const api = {
       request<void>(
         `/api/v1/inbox/conversations/${encodeURIComponent(id)}/resolve`,
         { method: 'PATCH' },
+      ),
+  },
+
+  referral: {
+    /** My referral code (auto-created if missing). */
+    code: () => request<ReferralCode>('/api/v1/referral/code'),
+    /** Stats + list of tenants I referred. */
+    stats: () => request<ReferralStats>('/api/v1/referral'),
+    /** Wallet balance + last 50 transactions. */
+    wallet: () => request<{ wallet: ReferralWallet; transactions: WalletTransaction[] }>('/api/v1/referral/wallet'),
+    /** Submit a bank-transfer payout request with bank + tax details + PDPA consent. */
+    submitPayoutRequest: (body: SubmitPayoutRequestBody) =>
+      request<{ ok: boolean; amount: number; request: PayoutRequest; message: string }>(
+        '/api/v1/referral/wallet/payout-request',
+        { method: 'POST', body: JSON.stringify(body) },
+      ),
+    /** My payout request history. */
+    myPayoutRequests: () => request<PayoutRequest[]>('/api/v1/referral/wallet/payout-requests'),
+  },
+
+  adminReferral: {
+    settings: () => request<ReferralSettings>('/api/v1/admin/referral/settings'),
+    updateSettings: (body: Partial<ReferralSettings>) =>
+      request<ReferralSettings>('/api/v1/admin/referral/settings', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+    referrals: () => request<AdminReferralRow[]>('/api/v1/admin/referral/referrals'),
+    wallets: () => request<AdminWalletRow[]>('/api/v1/admin/referral/wallets'),
+    markPayout: (walletId: string) =>
+      request<{ ok: boolean; amount: number }>(`/api/v1/admin/referral/wallets/${encodeURIComponent(walletId)}/payout`, {
+        method: 'POST',
+      }),
+    updateWalletPayoutType: (walletId: string, payout_type: 'manual' | 'credit') =>
+      request<void>(`/api/v1/admin/referral/wallets/${encodeURIComponent(walletId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ payout_type }),
+      }),
+    /** All payout requests, optionally filtered: status=pending|approved|rejected */
+    payoutRequests: (status?: string) =>
+      request<AdminPayoutRequestRow[]>(
+        `/api/v1/admin/referral/payout-requests${status ? `?status=${status}` : ''}`,
+      ),
+    approvePayoutRequest: (id: string, admin_note?: string) =>
+      request<{ ok: boolean; amount: number }>(
+        `/api/v1/admin/referral/payout-requests/${encodeURIComponent(id)}/approve`,
+        { method: 'POST', body: JSON.stringify({ admin_note: admin_note ?? '' }) },
+      ),
+    rejectPayoutRequest: (id: string, admin_note?: string) =>
+      request<{ ok: boolean; refunded: number }>(
+        `/api/v1/admin/referral/payout-requests/${encodeURIComponent(id)}/reject`,
+        { method: 'POST', body: JSON.stringify({ admin_note: admin_note ?? '' }) },
       ),
   },
 

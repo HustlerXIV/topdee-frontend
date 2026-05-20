@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   api,
+  ApiError,
   type Message,
   type PlaygroundConversationSummary,
 } from '@/lib/api';
@@ -136,7 +137,22 @@ export function Playground({ height = 360 }: { height?: number }) {
         .list()
         .then(setConversations)
         .catch(() => {});
-    } catch { } finally {
+    } catch (err: unknown) {
+      // 402 = subscription expired — show a targeted notice instead of
+      // swallowing the error silently.
+      const is402 = err instanceof ApiError && err.status === 402;
+      if (is402) {
+        setTurns((tr) => [
+          ...tr,
+          {
+            role: 'notice' as const,
+            content: isTh
+              ? 'แพ็กเกจหมดอายุแล้ว — กรุณาต่ออายุเพื่อใช้งาน AI Playground ต่อ'
+              : 'Your subscription has expired — please renew to continue using the AI Playground.',
+          },
+        ]);
+      }
+    } finally {
       setBusy(false);
     }
   }
