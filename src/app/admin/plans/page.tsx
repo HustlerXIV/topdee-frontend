@@ -31,6 +31,8 @@ function fmtPrice(price: number, currency: string) {
 
 function emptyLimits(): PlanLimits {
   return {
+    channel_limit_mode: 'per_provider',
+    total_channels: 0,
     channels: { facebook: 1, line: 1 },
     members: 5,
     messages_per_month: 1000,
@@ -368,7 +370,111 @@ function PlanModal({
             {/* Channel limits */}
             <div>
               <p className="mb-2 text-[13px] font-medium text-ink">Channel limits</p>
+
+              {/* Mode picker — per_provider keeps the legacy "X Facebook,
+                  Y LINE" caps, total switches to a single sum-of-all-providers
+                  cap that the customer allocates themselves. */}
+              <div className="mb-3 rounded-lg border border-line2 bg-page/40 p-3 space-y-3">
+                <div>
+                  <label className="mb-1 block text-[12px] font-medium text-ink">
+                    Limit mode
+                  </label>
+                  <div className="flex flex-col gap-1.5 sm:flex-row sm:gap-4">
+                    <label className="flex cursor-pointer items-start gap-2 text-[12px] text-ink">
+                      <input
+                        type="radio"
+                        name="channel_limit_mode"
+                        className="mt-0.5"
+                        checked={(form.limits.channel_limit_mode ?? 'per_provider') !== 'total'}
+                        onChange={() =>
+                          setForm((f) => ({
+                            ...f,
+                            limits: { ...f.limits, channel_limit_mode: 'per_provider' },
+                          }))
+                        }
+                      />
+                      <span>
+                        <span className="font-medium">Per-provider caps</span>
+                        <span className="block text-[11px] text-ink-faint">
+                          Each provider has its own cap (e.g. 3 Facebook + 1 LINE).
+                        </span>
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-2 text-[12px] text-ink">
+                      <input
+                        type="radio"
+                        name="channel_limit_mode"
+                        className="mt-0.5"
+                        checked={form.limits.channel_limit_mode === 'total'}
+                        onChange={() =>
+                          setForm((f) => ({
+                            ...f,
+                            limits: { ...f.limits, channel_limit_mode: 'total' },
+                          }))
+                        }
+                      />
+                      <span>
+                        <span className="font-medium">Total cap (customer picks)</span>
+                        <span className="block text-[11px] text-ink-faint">
+                          One total cap; the customer mixes providers however they like.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {form.limits.channel_limit_mode === 'total' && (
+                  <div>
+                    <label className="mb-1 block text-[12px] font-medium text-ink">
+                      Total channels
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="number"
+                        min={0}
+                        value={form.limits.total_channels === -1 ? '' : (form.limits.total_channels ?? 0)}
+                        placeholder={form.limits.total_channels === -1 ? '∞' : '0'}
+                        disabled={form.limits.total_channels === -1}
+                        onChange={(e) => {
+                          const n = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                          setForm((f) => ({
+                            ...f,
+                            limits: { ...f.limits, total_channels: isNaN(n) ? 0 : n },
+                          }));
+                        }}
+                        className={`w-24 ${form.limits.total_channels === -1 ? 'opacity-40' : ''}`}
+                      />
+                      <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-muted">
+                        <input
+                          type="checkbox"
+                          checked={form.limits.total_channels === -1}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              limits: { ...f.limits, total_channels: e.target.checked ? -1 : 0 },
+                            }))
+                          }
+                          className="h-3.5 w-3.5 rounded border-line2"
+                        />
+                        Unlimited
+                      </label>
+                    </div>
+                    <p className="mt-1 text-[11px] text-ink-faint">
+                      Customer can connect any mix of providers up to this many channels total.
+                      Per-provider rows below still apply as a visibility gate — set a row to{' '}
+                      <strong>0</strong> to hide that provider from this plan.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="rounded-lg border border-line2 divide-y divide-line2">
+                {form.limits.channel_limit_mode === 'total' && (
+                  <div className="bg-page/30 px-4 py-2 text-[11px] text-ink-faint">
+                    In total-cap mode these numbers are ignored except for a value of{' '}
+                    <code className="font-mono">0</code>, which hides the provider entirely.
+                  </div>
+                )}
                 {[...KNOWN_PROVIDERS, ...extraProviders].map((provider) => {
                   const val = form.limits.channels[provider] ?? 0;
                   const isUnlimited = val === -1;
@@ -552,12 +658,23 @@ function PlanCard({
 
       {/* Limits table */}
       <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
-        {Object.entries(plan.limits.channels).filter(([, n]) => n !== 0).map(([provider, n]) => (
-          <div key={provider} className="flex justify-between border-b border-line2 py-1">
-            <span className="capitalize text-ink-faint">{provider}</span>
-            <span className="font-medium text-ink">{fmtLimit(n)} ch</span>
+        {plan.limits.channel_limit_mode === 'total' ? (
+          <div className="flex justify-between border-b border-line2 py-1">
+            <span className="text-ink-faint">Total channels</span>
+            <span className="font-medium text-ink">
+              {fmtLimit(plan.limits.total_channels ?? 0)} ch
+            </span>
           </div>
-        ))}
+        ) : (
+          Object.entries(plan.limits.channels)
+            .filter(([, n]) => n !== 0)
+            .map(([provider, n]) => (
+              <div key={provider} className="flex justify-between border-b border-line2 py-1">
+                <span className="capitalize text-ink-faint">{provider}</span>
+                <span className="font-medium text-ink">{fmtLimit(n)} ch</span>
+              </div>
+            ))
+        )}
         <div className="flex justify-between border-b border-line2 py-1">
           <span className="text-ink-faint">Members</span>
           <span className="font-medium text-ink">{fmtLimit(plan.limits.members)}</span>

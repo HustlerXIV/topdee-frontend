@@ -140,8 +140,16 @@ function planFeatures(p: Plan, unlimited: string) {
     );
   }
 
-  // Channel connections — sum all providers
-  if (p.limits?.channels) {
+  // Channel connections — either the explicit total cap (in "total" mode)
+  // or the sum of per-provider caps (legacy mode).
+  if (p.limits?.channel_limit_mode === 'total') {
+    const total = p.limits.total_channels ?? 0;
+    if (total === -1) {
+      items.push(`${unlimited} channel connections (any mix)`);
+    } else if (total > 0) {
+      items.push(`${total} channel connection${total !== 1 ? "s" : ""} (any mix)`);
+    }
+  } else if (p.limits?.channels) {
     const total = Object.values(p.limits.channels).reduce((a, b) => a + b, 0);
     const hasUnlimited = Object.values(p.limits.channels).some((v) => v === -1);
     if (hasUnlimited) items.push(`${unlimited} channel connections`);

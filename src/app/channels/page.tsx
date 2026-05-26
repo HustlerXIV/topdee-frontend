@@ -95,6 +95,16 @@ export default function ChannelsPage() {
   const [igBusy, setIGBusy] = useState(false);
   // Stores the embed code after a web widget connection is created
   const [webEmbedCode, setWebEmbedCode] = useState<string | null>(null);
+  // Total-mode "Connect a channel" picker modal visibility.
+  const [showProviderPicker, setShowProviderPicker] = useState(false);
+
+  // ── Mode awareness ─────────────────────────────────────────────────────
+  // In "total" mode the customer chooses any provider mix up to a single
+  // cap; in "per_provider" mode each provider has its own cap (legacy UX).
+  const isTotalMode = data?.channel_limit_mode === 'total';
+  const totalCap = data?.total ?? -1;
+  const totalUsed = data?.total_used ?? 0;
+  const totalAtLimit = totalCap !== -1 && totalUsed >= totalCap;
 
   // ── Load connections on mount, and react to OAuth redirect query params.
   // We read window.location directly instead of useSearchParams so the page
@@ -171,6 +181,15 @@ export default function ChannelsPage() {
     setWebEmbedCode(null);
   }
 
+  // Start the connect flow for a provider — shared by per-provider section
+  // buttons and the total-mode picker modal so behavior stays in sync.
+  function startConnect(providerId: ProviderKey) {
+    if (providerId === 'facebook') startFacebookOAuth();
+    else if (providerId === 'instagram') startInstagramOAuth();
+    else if (providerId === 'line') setOpenProvider('line');
+    else if (providerId === 'web') setOpenProvider('web');
+  }
+
   // Group connections by provider.
   const byProvider = useMemo(() => {
     const out: Record<string, ChannelConnection[]> = { facebook: [], instagram: [], line: [] };
@@ -189,6 +208,42 @@ export default function ChannelsPage() {
       />
       <PageBody>
         <div className="space-y-6">
+          {/* ── Total-mode header ──────────────────────────────────────
+              In "total" mode there's a single cap across all providers,
+              so we show one usage gauge + a "+ Connect a channel" button
+              that opens a picker modal. */}
+          {isTotalMode && data && (
+            <Card>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-bold text-ink">Channels</h2>
+                  <p className="text-xs text-ink-faint">
+                    {totalUsed}
+                    {totalCap !== -1 ? ` / ${totalCap}` : ''} channels connected
+                    {totalCap === -1 && ' (unlimited)'}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant={totalAtLimit ? 'outline' : 'primary'}
+                  onClick={() => {
+                    if (totalAtLimit) {
+                      showToast(
+                        `Plan limit reached (${totalUsed}/${totalCap}). Upgrade to add more.`,
+                        'default',
+                      );
+                      return;
+                    }
+                    setShowProviderPicker(true);
+                  }}
+                  disabled={busy || igBusy}
+                >
+                  + Connect a channel
+                </Button>
+              </div>
+            </Card>
+          )}
+
           {PROVIDERS.map((p) => {
             const conns = byProvider[p.id] ?? [];
             const used = data?.used?.[p.id] ?? 0;
@@ -203,7 +258,12 @@ export default function ChannelsPage() {
             // render all sections as skeletons so there's no layout shift.
             if (data !== null && limit === 0) return null;
 
-            const atLimit = used >= limit && limit !== -1;
+            // In total mode, "at limit" is governed by the shared total
+            // cap, not the per-provider number. In per-provider mode it's
+            // the legacy check.
+            const atLimit = isTotalMode
+              ? totalAtLimit
+              : used >= limit && limit !== -1;
 
             // The inline panel rendered inside this provider's section.
             let inlinePanel: React.ReactNode = null;
@@ -278,16 +338,17 @@ export default function ChannelsPage() {
                 connections={conns}
                 used={used}
                 limit={limit}
+                isTotalMode={isTotalMode}
                 onDisconnect={disconnect}
                 onConnect={() => {
                   if (atLimit) {
-                    showToast(`Plan limit reached (${used}/${limit}). Upgrade to add more.`, 'default');
+                    const msg = isTotalMode
+                      ? `Plan limit reached (${totalUsed}/${totalCap}). Upgrade to add more.`
+                      : `Plan limit reached (${used}/${limit}). Upgrade to add more.`;
+                    showToast(msg, 'default');
                     return;
                   }
-                  if (p.id === 'facebook') startFacebookOAuth();
-                  else if (p.id === 'instagram') startInstagramOAuth();
-                  else if (p.id === 'line') setOpenProvider('line');
-                  else if (p.id === 'web') setOpenProvider('web');
+                  startConnect(p.id);
                 }}
                 connectBusy={(p.id === 'facebook' && busy) || (p.id === 'instagram' && igBusy)}
                 inlinePanel={inlinePanel}
@@ -295,8 +356,115 @@ export default function ChannelsPage() {
             );
           })}
         </div>
+
+        {/* ── Total-mode picker modal ─────────────────────────────────
+            Lives at the page root so backdrop covers the whole viewport. */}
+        {showProviderPicker && (
+          <ChannelPickerModal
+            providers={PROVIDERS.filter((p) => (data?.limits?.[p.id] ?? 0) !== 0)}
+            used={data?.used ?? {}}
+            totalUsed={totalUsed}
+            totalCap={totalCap}
+            onClose={() => setShowProviderPicker(false)}
+            onPick={(id) => {
+              setShowProviderPicker(false);
+              startConnect(id);
+            }}
+          />
+        )}
       </PageBody>
     </AppShell>
+  );
+}
+
+// ── ChannelPickerModal ─────────────────────────────────────────────────
+// Total-mode entry point. Lists every provider the plan allows; clicking
+// one routes to its existing connect flow. Per-provider visibility is still
+// driven by `limits[provider] !== 0` so admins can hide providers on a tier
+// even while using the total-cap model.
+
+function ChannelPickerModal({
+  providers,
+  used,
+  totalUsed,
+  totalCap,
+  onClose,
+  onPick,
+}: {
+  providers: ProviderSpec[];
+  used: Record<string, number>;
+  totalUsed: number;
+  totalCap: number;
+  onClose: () => void;
+  onPick: (id: ProviderKey) => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-card shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-line2 p-4">
+          <div>
+            <h2 className="text-base font-bold text-ink">Connect a channel</h2>
+            <p className="text-xs text-ink-faint">
+              Choose any channel — {totalUsed}
+              {totalCap !== -1 ? ` / ${totalCap}` : ''} used
+              {totalCap === -1 && ' (unlimited)'}
+            </p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
+            <XIcon className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {providers.length === 0 ? (
+          <div className="p-6 text-center text-sm text-ink-faint">
+            No channels available on your plan. Contact support to add one.
+          </div>
+        ) : (
+          <ul className="space-y-2 p-4">
+            {providers.map((p) => {
+              const Logo = p.Logo;
+              const usedHere = used[p.id] ?? 0;
+              return (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => onPick(p.id)}
+                    className="flex w-full items-center gap-3 rounded-xl border border-line2 bg-card p-3 text-left transition-colors hover:bg-page"
+                  >
+                    <div
+                      className={cn(
+                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                        p.bg,
+                        p.fg,
+                      )}
+                    >
+                      <Logo className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-bold text-ink">{p.name}</div>
+                      <div className="truncate text-[11px] text-ink-faint">
+                        {usedHere > 0
+                          ? `${usedHere} connected`
+                          : 'Not connected yet'}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-[12px] font-semibold text-brand-600">
+                      Connect →
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -307,6 +475,7 @@ function ProviderSection({
   connections,
   used,
   limit,
+  isTotalMode,
   onConnect,
   onDisconnect,
   connectBusy,
@@ -316,6 +485,10 @@ function ProviderSection({
   connections: ChannelConnection[];
   used: number;
   limit: number;
+  /** When true, the page is in total-cap mode — the per-section Connect
+   *  button is suppressed in favor of the unified picker modal at the top.
+   *  Empty sections are also hidden to keep the page clean. */
+  isTotalMode?: boolean;
   onConnect: () => void;
   onDisconnect: (c: ChannelConnection) => void;
   connectBusy?: boolean;
@@ -324,6 +497,15 @@ function ProviderSection({
   const t = useT();
   const Logo = spec.Logo;
   const atLimit = limit !== -1 && used >= limit;
+
+  // In total-cap mode, hide entire sections that have no connections and
+  // no open inline panel — the customer adds them via the top-level picker
+  // instead. Sections with active connections still render so they can be
+  // managed/disconnected.
+  if (isTotalMode && connections.length === 0 && !inlinePanel) {
+    return null;
+  }
+
   return (
     <section>
       {/* Header */}
@@ -335,19 +517,23 @@ function ProviderSection({
           <div>
             <h2 className="text-base font-bold text-ink">{spec.name}</h2>
             <p className="text-xs text-ink-faint">
-              {used}{limit !== -1 ? ` / ${limit}` : ''} {t('common.connected').toLowerCase()}
+              {isTotalMode
+                ? `${used} ${t('common.connected').toLowerCase()}`
+                : `${used}${limit !== -1 ? ` / ${limit}` : ''} ${t('common.connected').toLowerCase()}`}
             </p>
           </div>
         </div>
-        <Button
-          size="sm"
-          variant={atLimit ? 'outline' : 'primary'}
-          onClick={onConnect}
-          disabled={connectBusy}
-          className="shrink-0"
-        >
-          {connectBusy ? '…' : `+ ${t('common.connect')}`}
-        </Button>
+        {!isTotalMode && (
+          <Button
+            size="sm"
+            variant={atLimit ? 'outline' : 'primary'}
+            onClick={onConnect}
+            disabled={connectBusy}
+            className="shrink-0"
+          >
+            {connectBusy ? '…' : `+ ${t('common.connect')}`}
+          </Button>
+        )}
       </div>
 
       {connections.length === 0 && !inlinePanel ? (
