@@ -297,12 +297,26 @@ export default function HomePage() {
                 )}
                 <p className="mb-6 mt-2 text-[13px] text-ink-faint">{p.description}</p>
                 <ul className="mb-7 space-y-2.5">
-                  {Object.entries(p.limits.channels).filter(([, n]) => n !== 0).map(([provider, n]) => (
-                    <li key={provider} className="flex items-center gap-2.5 text-sm text-ink">
+                  {/* In "total" mode the plan exposes a single sum-of-all
+                      cap; customers pick the providers themselves. We render
+                      a single bullet instead of one per provider. */}
+                  {p.limits.channel_limit_mode === 'total' ? (
+                    <li className="flex items-center gap-2.5 text-sm text-ink">
                       <Check className="h-4 w-4 flex-shrink-0 text-brand-600" />
-                      {n === -1 ? (isTh ? `${provider} ไม่จำกัด` : `Unlimited ${provider}`) : `${n} ${provider}`}
+                      {p.limits.total_channels === -1
+                        ? (isTh ? 'ช่องทางไม่จำกัด (เลือกได้เอง)' : 'Unlimited channels (any mix)')
+                        : (isTh
+                            ? `${p.limits.total_channels} ช่องทาง (เลือกได้เอง)`
+                            : `${p.limits.total_channels} channels (any mix)`)}
                     </li>
-                  ))}
+                  ) : (
+                    Object.entries(p.limits.channels).filter(([, n]) => n !== 0).map(([provider, n]) => (
+                      <li key={provider} className="flex items-center gap-2.5 text-sm text-ink">
+                        <Check className="h-4 w-4 flex-shrink-0 text-brand-600" />
+                        {n === -1 ? (isTh ? `${provider} ไม่จำกัด` : `Unlimited ${provider}`) : `${n} ${provider}`}
+                      </li>
+                    ))
+                  )}
                   <li className="flex items-center gap-2.5 text-sm text-ink">
                     <Check className="h-4 w-4 flex-shrink-0 text-brand-600" />
                     {p.limits.messages_per_month === -1

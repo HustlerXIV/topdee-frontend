@@ -46,6 +46,20 @@ export type ChannelsResponse = {
   limits: Record<string, number>;
   /** Per-provider current usage, e.g. { facebook: 2 } */
   used: Record<string, number>;
+  /**
+   * "per_provider" — each provider has its own cap (legacy behavior, UI
+   *   renders one section per provider).
+   * "total" — a single total cap (`total`) bounds the sum of all
+   *   connections; the UI shows a unified "Connect a channel" picker.
+   *
+   * A provider with `limits[provider] === 0` is still hidden regardless
+   * of mode (admin override for tier gating).
+   */
+  channel_limit_mode: 'per_provider' | 'total' | string;
+  /** Max total connections across all providers (only meaningful in total mode). -1 = unlimited. */
+  total: number;
+  /** Sum of `used` across providers — convenience for the total-mode header. */
+  total_used: number;
 };
 
 export type FacebookOAuthStartResp = {
@@ -161,6 +175,14 @@ export type AdminTenantFull = AdminTenant & {
 };
 
 export type PlanLimits = {
+  /**
+   * "per_provider" (default) — each provider's cap in `channels` applies.
+   * "total" — a single cap (`total_channels`) bounds the sum across
+   * providers; `channels[provider] === 0` still hides a provider.
+   */
+  channel_limit_mode?: 'per_provider' | 'total' | string;
+  /** Sum-of-all-providers cap. Only used when channel_limit_mode === 'total'. -1 = unlimited. */
+  total_channels?: number;
   channels: Record<string, number>; // keyed by provider slug, -1 = unlimited
   members: number;
   messages_per_month: number;
