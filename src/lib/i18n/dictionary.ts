@@ -339,6 +339,11 @@ export const dictionary = {
   "analytics.change.new": { th: "ไม่มีข้อมูลช่วงก่อน", en: "No prior period data" },
   "analytics.channel.line": { th: "LINE OA", en: "LINE OA" },
   "analytics.channel.facebook": { th: "Facebook", en: "Facebook" },
+  "analytics.channel.instagram": { th: "Instagram", en: "Instagram" },
+  "analytics.channel.tiktok": { th: "TikTok", en: "TikTok" },
+  "analytics.channel.whatsapp": { th: "WhatsApp", en: "WhatsApp" },
+  "analytics.channel.lazada": { th: "Lazada", en: "Lazada" },
+  "analytics.channel.web": { th: "เว็บไซต์", en: "Webchat" },
   "analytics.channel.dashboard": { th: "Playground", en: "Playground" },
   "analytics.sub2": { th: "ข้อมูลจริงจากระบบ — ไม่รวมการทดสอบใน Playground", en: "Live data from your workspace — playground tests excluded" },
 
