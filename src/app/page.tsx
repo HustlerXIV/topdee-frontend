@@ -13,6 +13,8 @@ import {
   MessageCircle,
   Facebook,
   Instagram,
+  TikTok,
+  ShoppingBag,
   Globe,
   Inbox,
   Bot,
@@ -215,6 +217,18 @@ export default function HomePage() {
         </ChannelBadge>
         <ChannelBadge channel="ig" icon={<Instagram className="h-4 w-4" />}>
           Instagram
+        </ChannelBadge>
+        <ChannelBadge channel="tiktok" icon={<TikTok className="h-4 w-4" />}>
+          TikTok
+        </ChannelBadge>
+        <ChannelBadge
+          channel="whatsapp"
+          icon={<MessageCircle className="h-4 w-4" />}
+        >
+          WhatsApp
+        </ChannelBadge>
+        <ChannelBadge channel="lazada" icon={<ShoppingBag className="h-4 w-4" />}>
+          Lazada
         </ChannelBadge>
         <ChannelBadge channel="web" icon={<Globe className="h-4 w-4" />}>
           Webchat
