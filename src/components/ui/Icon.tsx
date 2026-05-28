@@ -92,6 +92,7 @@ import {
   MessageSquare,
   Facebook,
   Instagram,
+  Music as TikTok,
   Globe,
   // ── Misc ──────────────────────────────────────
   Building2,
@@ -207,6 +208,9 @@ export const ICONS = {
   line: MessageCircle, // LINE — green tint at the call site
   facebook: Facebook,
   instagram: Instagram,
+  tiktok: TikTok, // TikTok — lucide doesn't ship a brand glyph, Music is the closest
+  whatsapp: MessageCircle, // WhatsApp — generic chat bubble, green-tinted at the call site
+  lazada: ShoppingBag, // Lazada — e-commerce platform, shopping bag fits
   web: Globe,
   globe: Globe,
 
@@ -312,6 +316,7 @@ export {
   MessageSquare,
   Facebook,
   Instagram,
+  TikTok,
   Globe,
   Building2,
   ShoppingBag,

@@ -33,12 +33,21 @@ import {
   MessageCircle,
   Facebook,
   Instagram,
+  TikTok,
+  ShoppingBag,
   Globe,
   Copy,
   X as XIcon,
 } from '@/components/ui/Icon';
 
-type ProviderKey = 'facebook' | 'instagram' | 'line' | 'web';
+type ProviderKey =
+  | 'facebook'
+  | 'instagram'
+  | 'line'
+  | 'tiktok'
+  | 'whatsapp'
+  | 'lazada'
+  | 'web';
 
 type ProviderSpec = {
   id: ProviderKey;
@@ -71,6 +80,27 @@ const PROVIDERS: ProviderSpec[] = [
     fg: 'text-line dark:text-emerald-300',
   },
   {
+    id: 'tiktok',
+    name: 'TikTok',
+    Logo: TikTok,
+    bg: 'bg-neutral-100 dark:bg-neutral-800/60',
+    fg: 'text-neutral-900 dark:text-neutral-100',
+  },
+  {
+    id: 'whatsapp',
+    name: 'WhatsApp Business',
+    Logo: MessageCircle,
+    bg: 'bg-emerald-50 dark:bg-emerald-900/30',
+    fg: 'text-emerald-600 dark:text-emerald-300',
+  },
+  {
+    id: 'lazada',
+    name: 'Lazada',
+    Logo: ShoppingBag,
+    bg: 'bg-orange-50 dark:bg-orange-900/30',
+    fg: 'text-orange-600 dark:text-orange-300',
+  },
+  {
     id: 'web',
     name: 'Website Chat Widget',
     Logo: Globe,
@@ -91,8 +121,15 @@ export default function ChannelsPage() {
   const [pickerState, setPickerState] = useState<string | null>(null);
   // IG OAuth state token (set when Meta redirects back with ?ig_oauth=ok)
   const [igPickerState, setIGPickerState] = useState<string | null>(null);
+  // TikTok OAuth state token (set when TikTok redirects back with ?tt_oauth=ok)
+  const [ttPickerState, setTTPickerState] = useState<string | null>(null);
+  // WhatsApp OAuth state token (set when Meta redirects back with ?wa_oauth=ok)
+  const [waPickerState, setWAPickerState] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [igBusy, setIGBusy] = useState(false);
+  const [ttBusy, setTTBusy] = useState(false);
+  const [waBusy, setWABusy] = useState(false);
+  const [lzBusy, setLZBusy] = useState(false);
   // Stores the embed code after a web widget connection is created
   const [webEmbedCode, setWebEmbedCode] = useState<string | null>(null);
   // Total-mode "Connect a channel" picker modal visibility.
@@ -115,6 +152,9 @@ export default function ChannelsPage() {
     const search = new URLSearchParams(window.location.search);
     const fbOauth = search.get('fb_oauth');
     const igOauth = search.get('ig_oauth');
+    const ttOauth = search.get('tt_oauth');
+    const waOauth = search.get('wa_oauth');
+    const lzOauth = search.get('lz_oauth');
     const oauthState = search.get('state');
 
     if (fbOauth === 'ok' && oauthState) {
@@ -130,6 +170,29 @@ export default function ChannelsPage() {
       window.history.replaceState({}, '', '/channels');
     } else if (igOauth === 'error') {
       showToast(`Instagram connect failed: ${search.get('reason') ?? 'unknown'}`, 'default');
+      window.history.replaceState({}, '', '/channels');
+    } else if (ttOauth === 'ok' && oauthState) {
+      setTTPickerState(oauthState);
+      setOpenProvider('tiktok');
+      window.history.replaceState({}, '', '/channels');
+    } else if (ttOauth === 'error') {
+      showToast(`TikTok connect failed: ${search.get('reason') ?? 'unknown'}`, 'default');
+      window.history.replaceState({}, '', '/channels');
+    } else if (waOauth === 'ok' && oauthState) {
+      setWAPickerState(oauthState);
+      setOpenProvider('whatsapp');
+      window.history.replaceState({}, '', '/channels');
+    } else if (waOauth === 'error') {
+      showToast(`WhatsApp connect failed: ${search.get('reason') ?? 'unknown'}`, 'default');
+      window.history.replaceState({}, '', '/channels');
+    } else if (lzOauth === 'ok') {
+      // Lazada finishes the connection server-side — no picker needed.
+      // Just refresh and let the new connection card render.
+      refresh();
+      showToast('Lazada seller connected', 'success');
+      window.history.replaceState({}, '', '/channels');
+    } else if (lzOauth === 'error') {
+      showToast(`Lazada connect failed: ${search.get('reason') ?? 'unknown'}`, 'default');
       window.history.replaceState({}, '', '/channels');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,6 +226,39 @@ export default function ChannelsPage() {
     }
   }
 
+  async function startTikTokOAuth() {
+    setTTBusy(true);
+    try {
+      const resp = await api.channels.tiktok.oauthStart();
+      window.location.href = resp.login_url;
+    } catch (e) {
+      setTTBusy(false);
+      showToast(e instanceof ApiError ? e.message : 'connect failed', 'default');
+    }
+  }
+
+  async function startWhatsAppOAuth() {
+    setWABusy(true);
+    try {
+      const resp = await api.channels.whatsapp.oauthStart();
+      window.location.href = resp.login_url;
+    } catch (e) {
+      setWABusy(false);
+      showToast(e instanceof ApiError ? e.message : 'connect failed', 'default');
+    }
+  }
+
+  async function startLazadaOAuth() {
+    setLZBusy(true);
+    try {
+      const resp = await api.channels.lazada.oauthStart();
+      window.location.href = resp.login_url;
+    } catch (e) {
+      setLZBusy(false);
+      showToast(e instanceof ApiError ? e.message : 'connect failed', 'default');
+    }
+  }
+
   async function disconnect(conn: ChannelConnection) {
     if (!confirm(`Disconnect "${conn.display_name}"?`)) return;
     try {
@@ -178,6 +274,8 @@ export default function ChannelsPage() {
     setOpenProvider(null);
     setPickerState(null);
     setIGPickerState(null);
+    setTTPickerState(null);
+    setWAPickerState(null);
     setWebEmbedCode(null);
   }
 
@@ -186,13 +284,23 @@ export default function ChannelsPage() {
   function startConnect(providerId: ProviderKey) {
     if (providerId === 'facebook') startFacebookOAuth();
     else if (providerId === 'instagram') startInstagramOAuth();
+    else if (providerId === 'tiktok') startTikTokOAuth();
+    else if (providerId === 'whatsapp') startWhatsAppOAuth();
+    else if (providerId === 'lazada') startLazadaOAuth();
     else if (providerId === 'line') setOpenProvider('line');
     else if (providerId === 'web') setOpenProvider('web');
   }
 
   // Group connections by provider.
   const byProvider = useMemo(() => {
-    const out: Record<string, ChannelConnection[]> = { facebook: [], instagram: [], line: [] };
+    const out: Record<string, ChannelConnection[]> = {
+      facebook: [],
+      instagram: [],
+      line: [],
+      tiktok: [],
+      whatsapp: [],
+      lazada: [],
+    };
     for (const c of data?.connections ?? []) {
       (out[c.provider] ??= []).push(c);
     }
@@ -236,7 +344,7 @@ export default function ChannelsPage() {
                     }
                     setShowProviderPicker(true);
                   }}
-                  disabled={busy || igBusy}
+                  disabled={busy || igBusy || ttBusy || waBusy || lzBusy}
                 >
                   + Connect a channel
                 </Button>
@@ -289,6 +397,30 @@ export default function ChannelsPage() {
                       closePanel();
                       refresh();
                       showToast(`${n} Instagram account${n === 1 ? '' : 's'} connected`, 'success');
+                    }}
+                  />
+                );
+              } else if (p.id === 'tiktok' && ttPickerState) {
+                inlinePanel = (
+                  <TikTokAccountPicker
+                    state={ttPickerState}
+                    onClose={closePanel}
+                    onDone={(n) => {
+                      closePanel();
+                      refresh();
+                      showToast(`${n} TikTok account${n === 1 ? '' : 's'} connected`, 'success');
+                    }}
+                  />
+                );
+              } else if (p.id === 'whatsapp' && waPickerState) {
+                inlinePanel = (
+                  <WhatsAppPhoneNumberPicker
+                    state={waPickerState}
+                    onClose={closePanel}
+                    onDone={(n) => {
+                      closePanel();
+                      refresh();
+                      showToast(`${n} WhatsApp number${n === 1 ? '' : 's'} connected`, 'success');
                     }}
                   />
                 );
@@ -350,7 +482,13 @@ export default function ChannelsPage() {
                   }
                   startConnect(p.id);
                 }}
-                connectBusy={(p.id === 'facebook' && busy) || (p.id === 'instagram' && igBusy)}
+                connectBusy={
+                  (p.id === 'facebook' && busy) ||
+                  (p.id === 'instagram' && igBusy) ||
+                  (p.id === 'tiktok' && ttBusy) ||
+                  (p.id === 'whatsapp' && waBusy) ||
+                  (p.id === 'lazada' && lzBusy)
+                }
                 inlinePanel={inlinePanel}
               />
             );
@@ -985,6 +1123,204 @@ function FacebookPagePicker({
       )}
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+        <Button size="sm" onClick={submit} disabled={busy || picked.size === 0}>
+          {busy ? '…' : `Connect ${picked.size || ''}`}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+// ── WhatsApp phone-number picker ───────────────────────────────────────
+
+function WhatsAppPhoneNumberPicker({
+  state,
+  onClose,
+  onDone,
+}: {
+  state: string;
+  onClose: () => void;
+  onDone: (count: number) => void;
+}) {
+  const [numbers, setNumbers] = useState<
+    {
+      phone_number_id: string;
+      display_phone_number: string;
+      verified_name?: string;
+      quality_rating?: string;
+      waba_id: string;
+      waba_name?: string;
+    }[]
+    | null
+  >(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.channels.whatsapp
+      .oauthPhoneNumbers(state)
+      .then((r) => {
+        if (!cancelled) setNumbers(r.phone_numbers);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [state]);
+
+  function toggle(id: string) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  async function submit() {
+    if (picked.size === 0) return;
+    setBusy(true);
+    try {
+      const r = await api.channels.whatsapp.oauthConnect(state, [...picked]);
+      onDone(r.connections.length);
+    } catch {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        icon={<MessageCircle className="h-4 w-4 text-emerald-600" />}
+        title="Choose WhatsApp numbers to connect"
+        action={
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
+            <XIcon className="h-4 w-4" />
+          </Button>
+        }
+      />
+      {!numbers && <p className="text-sm text-ink-faint">Loading phone numbers…</p>}
+      {numbers && numbers.length === 0 && (
+        <p className="text-sm text-ink-faint">
+          No WhatsApp Business numbers found. Make sure you completed Embedded
+          Signup and that the phone number is in your WhatsApp Business Account.
+        </p>
+      )}
+      {numbers && numbers.length > 0 && (
+        <ul className="space-y-2">
+          {numbers.map((n) => (
+            <li key={n.phone_number_id}>
+              <PickerItem
+                label={n.verified_name || n.display_phone_number}
+                sub={
+                  n.waba_name
+                    ? `${n.display_phone_number} · ${n.waba_name}`
+                    : n.display_phone_number
+                }
+                checked={picked.has(n.phone_number_id)}
+                onToggle={() => toggle(n.phone_number_id)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button size="sm" onClick={submit} disabled={busy || picked.size === 0}>
+          {busy ? '…' : `Connect ${picked.size || ''}`}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+// ── TikTok account picker ──────────────────────────────────────────────
+
+function TikTokAccountPicker({
+  state,
+  onClose,
+  onDone,
+}: {
+  state: string;
+  onClose: () => void;
+  onDone: (count: number) => void;
+}) {
+  const [accounts, setAccounts] = useState<
+    { business_id: string; display_name: string; username?: string }[] | null
+  >(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.channels.tiktok
+      .oauthAccounts(state)
+      .then((r) => {
+        if (!cancelled) setAccounts(r.accounts);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [state]);
+
+  function toggle(id: string) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  async function submit() {
+    if (picked.size === 0) return;
+    setBusy(true);
+    try {
+      const r = await api.channels.tiktok.oauthConnect(state, [...picked]);
+      onDone(r.connections.length);
+    } catch {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        icon={<TikTok className="h-4 w-4 text-neutral-900 dark:text-neutral-100" />}
+        title="Choose TikTok accounts to connect"
+        action={
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
+            <XIcon className="h-4 w-4" />
+          </Button>
+        }
+      />
+      {!accounts && <p className="text-sm text-ink-faint">Loading accounts…</p>}
+      {accounts && accounts.length === 0 && (
+        <p className="text-sm text-ink-faint">
+          No TikTok accounts found. Make sure you authorized the app and that
+          your account has Business Messaging enabled.
+        </p>
+      )}
+      {accounts && accounts.length > 0 && (
+        <ul className="space-y-2">
+          {accounts.map((a) => (
+            <li key={a.business_id}>
+              <PickerItem
+                label={a.display_name}
+                sub={a.username ? `@${a.username}` : a.business_id}
+                checked={picked.has(a.business_id)}
+                onToggle={() => toggle(a.business_id)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={onClose}>
+          Cancel
+        </Button>
         <Button size="sm" onClick={submit} disabled={busy || picked.size === 0}>
           {busy ? '…' : `Connect ${picked.size || ''}`}
         </Button>

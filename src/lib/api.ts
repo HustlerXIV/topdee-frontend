@@ -82,6 +82,38 @@ export type InstagramOAuthAccountsResp = {
   accounts: { igid: string; name: string; username?: string }[];
 };
 
+export type TikTokOAuthStartResp = {
+  login_url: string;
+  state: string;
+};
+
+export type TikTokOAuthAccountsResp = {
+  state: string;
+  accounts: { business_id: string; display_name: string; username?: string }[];
+};
+
+export type WhatsAppOAuthStartResp = {
+  login_url: string;
+  state: string;
+};
+
+export type WhatsAppOAuthPhoneNumbersResp = {
+  state: string;
+  phone_numbers: {
+    phone_number_id: string;
+    display_phone_number: string;
+    verified_name?: string;
+    quality_rating?: string;
+    waba_id: string;
+    waba_name?: string;
+  }[];
+};
+
+export type LazadaOAuthStartResp = {
+  login_url: string;
+  state: string;
+};
+
 export type Message = {
   id: string;
   conversation_id: string;
@@ -888,6 +920,62 @@ export const api = {
             method: 'POST',
             body: JSON.stringify({ state, ig_ids }),
           },
+        ),
+    },
+
+    tiktok: {
+      /** Step 1: get the TikTok Login URL. Frontend should redirect to it. */
+      oauthStart: () =>
+        request<TikTokOAuthStartResp>(
+          '/api/v1/channels/tiktok/oauth/start',
+          { method: 'POST' },
+        ),
+      /** Step 3: list TikTok business accounts discovered during OAuth. */
+      oauthAccounts: (state: string) =>
+        request<TikTokOAuthAccountsResp>(
+          `/api/v1/channels/tiktok/oauth/accounts?state=${encodeURIComponent(state)}`,
+        ),
+      /** Step 4: persist the chosen TikTok accounts as connections. */
+      oauthConnect: (state: string, business_ids: string[]) =>
+        request<{ connections: ChannelConnection[] }>(
+          '/api/v1/channels/tiktok/oauth/connect',
+          {
+            method: 'POST',
+            body: JSON.stringify({ state, business_ids }),
+          },
+        ),
+    },
+
+    whatsapp: {
+      /** Step 1: get the WhatsApp / Meta Login URL. Frontend should redirect. */
+      oauthStart: () =>
+        request<WhatsAppOAuthStartResp>(
+          '/api/v1/channels/whatsapp/oauth/start',
+          { method: 'POST' },
+        ),
+      /** Step 3: list WhatsApp phone numbers discovered during OAuth. */
+      oauthPhoneNumbers: (state: string) =>
+        request<WhatsAppOAuthPhoneNumbersResp>(
+          `/api/v1/channels/whatsapp/oauth/phone-numbers?state=${encodeURIComponent(state)}`,
+        ),
+      /** Step 4: persist the chosen phone numbers as connections. */
+      oauthConnect: (state: string, phone_number_ids: string[]) =>
+        request<{ connections: ChannelConnection[] }>(
+          '/api/v1/channels/whatsapp/oauth/connect',
+          {
+            method: 'POST',
+            body: JSON.stringify({ state, phone_number_ids }),
+          },
+        ),
+    },
+
+    lazada: {
+      /** Lazada has no picker step — the callback finishes the connection
+       * and bounces back to /channels?lz_oauth=ok. */
+      oauthStart: () =>
+        request<LazadaOAuthStartResp>(
+          '/api/v1/channels/lazada/oauth/start',
+          { method: 'POST' },
         ),
     },
 
