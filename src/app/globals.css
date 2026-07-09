@@ -83,6 +83,45 @@ body {
   background: linear-gradient(135deg, #0b1226 0%, #181434 100%);
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Landing hero.
+   Light: a soft white → lavender wash with dark text.
+   Dark:  a vivid violet → blue banner with white text (matches the
+          Figma dark frame's gradient hero block).
+   ────────────────────────────────────────────────────────────────── */
+.bg-hero {
+  background:
+    radial-gradient(120% 90% at 50% -10%, #ffffff 0%, #f5f3ff 45%, #ece7ff 100%);
+}
+.dark .bg-hero {
+  background:
+    radial-gradient(120% 120% at 15% -20%, #7c5cff 0%, #6537f0 40%, #3f2bb3 75%, #1a1440 100%);
+}
+
+/* Gradient brand text (used for the "TopDee?" heading accent). */
+.text-gradient-brand {
+  background: linear-gradient(90deg, #6c47ff 0%, #8b5cf6 55%, #38bdf8 120%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Soft floating orbs behind the hero mockup. */
+.hero-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(44px);
+  opacity: 0.55;
+  pointer-events: none;
+  animation: heroFloat 9s ease-in-out infinite;
+}
+.dark .hero-orb { opacity: 0.45; filter: blur(52px); }
+
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-18px) translateX(8px); }
+}
+
 /* Page transition shared by app pages — matches the prototype's fadeIn. */
 .page-enter {
   animation: fadeIn 0.2s ease;
