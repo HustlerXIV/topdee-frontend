@@ -10,6 +10,7 @@ import { InboxMockup } from "@/components/InboxMockup";
 import { ChatMockup } from "@/components/ChatMockup";
 import { useT } from "@/lib/i18n/useT";
 import { usePreferences } from "@/store/preferences";
+import { useAuth } from "@/store/auth";
 import { api, type Plan } from "@/lib/api";
 import {
   MessageCircle,
@@ -129,9 +130,18 @@ export default function HomePage() {
   const isTh = locale === "th";
   const [plans, setPlans] = useState<Plan[]>([]);
 
+  const authUser = useAuth((s) => s.user);
+  const hydrated = useAuth((s) => s.hydrated);
+  const hydrate = useAuth((s) => s.hydrate);
+  const loggedIn = hydrated && !!authUser;
+  const avatarInitial = (authUser?.name || authUser?.email || "?")
+    .slice(0, 1)
+    .toUpperCase();
+
   useEffect(() => {
+    hydrate();
     api.plans().then(setPlans).catch(() => {});
-  }, []);
+  }, [hydrate]);
 
   return (
     <main className="page-enter bg-page text-ink">
@@ -163,19 +173,37 @@ export default function HomePage() {
         {/* Language + theme — no extra padding on mobile */}
         <CompactPreferences className="px-0 py-0" />
 
-        {/* Login — hidden on mobile to keep the nav clean.
-            The signup page lets users switch to login from there. */}
-        <Link href="/login" className="hidden sm:block">
-          <Button variant="outline" size="sm">
-            {t("landing.signin")}
-          </Button>
-        </Link>
+        {loggedIn ? (
+          /* Already signed in — go straight to the app instead of auth CTAs. */
+          <Link href="/inbox">
+            <Button
+              variant="primary"
+              size="sm"
+              className="gap-2 whitespace-nowrap pl-1.5"
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/25 text-[11px] font-bold">
+                {avatarInitial}
+              </span>
+              {isTh ? "ไปที่แดชบอร์ด" : "Go to dashboard"}
+            </Button>
+          </Link>
+        ) : (
+          <>
+            {/* Login — hidden on mobile to keep the nav clean.
+                The signup page lets users switch to login from there. */}
+            <Link href="/login" className="hidden sm:block">
+              <Button variant="outline" size="sm">
+                {t("landing.signin")}
+              </Button>
+            </Link>
 
-        <Link href="/login?tab=register">
-          <Button variant="primary" size="sm" className="whitespace-nowrap">
-            {t("landing.signup")}
-          </Button>
-        </Link>
+            <Link href="/login?tab=register">
+              <Button variant="primary" size="sm" className="whitespace-nowrap">
+                {t("landing.signup")}
+              </Button>
+            </Link>
+          </>
+        )}
       </nav>
 
       {/* Hero */}
