@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { useConversations, type Conversation } from "@/store/conversations";
 import { useAuth } from "@/store/auth";
 import { API_URL, ApiError, type MessageAttachment } from "@/lib/api";
+import { getCookie } from "@/lib/cookies";
 import { useUI } from "@/store/ui";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/cn";
@@ -1055,9 +1056,7 @@ function AttachmentImage({
     let cancelled = false;
     let nextObjectUrl: string | null = null;
     const token =
-      typeof window === "undefined"
-        ? null
-        : window.localStorage.getItem("topdee_token");
+      typeof window === "undefined" ? null : getCookie("topdee_token");
 
     fetch(src, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,

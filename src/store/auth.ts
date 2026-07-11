@@ -1,6 +1,9 @@
 /**
- * Auth store — wraps the JWT in localStorage so the rest of the app can
- * subscribe to login state without prop drilling.
+ * Auth store — keeps the JWT in a cookie (8-hour max-age) so the rest of the
+ * app can subscribe to login state without prop drilling, and so an expired
+ * session can no longer masquerade as logged-in: once the cookie's max-age
+ * elapses the browser drops it, and we also reject a token whose own `exp`
+ * claim has passed on hydrate.
  *
  * The Go backend returns { token, user } from /auth/login, /auth/register,
  * and /auth/accept-invite. The user object includes the role, which we
@@ -12,6 +15,13 @@
  * to parsing it out of the JWT payload directly.
  */
 import { create } from 'zustand';
+import {
+  getCookie,
+  setCookie,
+  deleteCookie,
+  isJwtExpired,
+  TOKEN_MAX_AGE,
+} from '@/lib/cookies';
 
 const TOKEN_KEY = 'topdee_token';
 const USER_KEY = 'topdee_user';
@@ -43,7 +53,26 @@ export const useAuth = create<AuthState>((set) => ({
 
   hydrate: () => {
     if (typeof window === 'undefined') return;
-    const token = window.localStorage.getItem(TOKEN_KEY);
+
+    // Prefer the cookie. One-time migration: an older session may still have
+    // its token in localStorage — move it into the cookie if it's still valid,
+    // then clear the localStorage copy so we have a single source of truth.
+    let token = getCookie(TOKEN_KEY);
+    const legacyToken = window.localStorage.getItem(TOKEN_KEY);
+    if (legacyToken) window.localStorage.removeItem(TOKEN_KEY);
+    if (!token && legacyToken && !isJwtExpired(legacyToken)) {
+      token = legacyToken;
+      setCookie(TOKEN_KEY, token, TOKEN_MAX_AGE);
+    }
+
+    // An expired token is treated as no session at all.
+    if (token && isJwtExpired(token)) {
+      deleteCookie(TOKEN_KEY);
+      window.localStorage.removeItem(USER_KEY);
+      set({ token: null, user: null, hydrated: true });
+      return;
+    }
+
     const userRaw = window.localStorage.getItem(USER_KEY);
     let user: User | null = null;
     if (userRaw) {
@@ -76,7 +105,7 @@ export const useAuth = create<AuthState>((set) => ({
       user = { ...user, isAdmin: claims.isAdmin };
     }
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(TOKEN_KEY, token);
+      setCookie(TOKEN_KEY, token, TOKEN_MAX_AGE);
       window.localStorage.setItem(USER_KEY, JSON.stringify(user));
     }
     set({ token, user });
@@ -91,7 +120,8 @@ export const useAuth = create<AuthState>((set) => ({
 
   logout: () => {
     if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(TOKEN_KEY);
+      deleteCookie(TOKEN_KEY);
+      window.localStorage.removeItem(TOKEN_KEY); // clear any legacy copy too
       window.localStorage.removeItem(USER_KEY);
     }
     set({ token: null, user: null });

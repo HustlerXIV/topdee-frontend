@@ -1,7 +1,11 @@
 // Minimal typed client for the Go backend. Lives in the browser; reads token
-// from localStorage. For SSR/route handlers, pass the token explicitly.
+// from a cookie. For SSR/route handlers, pass the token explicitly.
+
+import { getCookie, deleteCookie } from './cookies';
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+
+const TOKEN_KEY = 'topdee_token';
 
 export type KnowledgeFile = {
   filename: string;
@@ -536,7 +540,27 @@ export class ApiError extends Error {
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem('topdee_token');
+  return getCookie(TOKEN_KEY);
+}
+
+// The session's token expired (or was revoked) mid-flight: the browser still
+// has a cookie/state that looks logged-in, but the backend rejected it. Clear
+// the session and bounce to /login so the user isn't stuck on a page whose
+// every request 401s. Guarded so we only ever fire once.
+let handlingExpiry = false;
+function handleSessionExpired() {
+  if (typeof window === 'undefined' || handlingExpiry) return;
+  handlingExpiry = true;
+  deleteCookie(TOKEN_KEY);
+  window.localStorage.removeItem(TOKEN_KEY);
+  window.localStorage.removeItem('topdee_user');
+  import('@/store/auth')
+    .then(({ useAuth }) => useAuth.getState().logout())
+    .catch(() => {});
+  // Full navigation so all in-memory stores reset cleanly.
+  if (!window.location.pathname.startsWith('/login')) {
+    window.location.assign('/login?expired=1');
+  }
 }
 
 // Lazily import the UI store so we never pull Zustand into SSR bundles.
@@ -570,6 +594,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const body = text ? JSON.parse(text) : null;
   if (!res.ok) {
     const message = body?.error ?? res.statusText;
+    // A 401 on a request we authenticated means the session went stale
+    // (token expired/revoked) — log out and redirect instead of leaving the
+    // user on a page that silently fails every call. A 401 with no token is
+    // just a failed login/public call, so leave that to the caller.
+    if (res.status === 401 && token) {
+      handleSessionExpired();
+      throw new ApiError(res.status, message);
+    }
     showErrorToast(message);
     throw new ApiError(res.status, message);
   }
