@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input, Select, FormGroup } from '@/components/ui/Input';
 import { useAuth } from '@/store/auth';
 import { useUI } from '@/store/ui';
+import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n/useT';
 import { type DictKey } from '@/lib/i18n/dictionary';
 import { cn } from '@/lib/cn';
@@ -55,13 +56,15 @@ export default function OnboardingPage() {
   const router = useRouter();
   const t = useT();
   const showToast = useUI((s) => s.showToast);
-  const { token, hydrated, hydrate } = useAuth();
+  const { token, user, hydrated, hydrate } = useAuth();
 
   // Begin at step 2 — registration counts as step 1.
   const [step, setStep] = useState<Step>(2);
   const [picked, setPicked] = useState<Set<Channel>>(new Set(['line']));
   const [botName, setBotName] = useState('AI Assistant');
+  const [businessType, setBusinessType] = useState('ecommerce');
   const [persona, setPersona] = useState<Persona>('friendly');
+  const [finishing, setFinishing] = useState(false);
 
   useEffect(() => {
     if (!hydrated) hydrate();
@@ -80,7 +83,33 @@ export default function OnboardingPage() {
     });
   }
 
-  function finish() {
+  async function finish() {
+    if (finishing) return;
+    setFinishing(true);
+    // Persist the bot config the user just set up. The onboarding persona set
+    // ('friendly' | 'professional') maps onto the bot's persona vocabulary
+    // ('professional' → 'formal'). Errors already surface a toast from the API
+    // layer; we still route on completion so the user is never stuck here.
+    const botPersona = persona === 'professional' ? 'formal' : 'friendly';
+    try {
+      await api.bot.update({
+        name: botName.trim() || 'AI Assistant',
+        persona: botPersona,
+      });
+    } catch {
+      // swallow — toast already shown; continue.
+    }
+    // Business type lives on the workspace, not the bot. Best-effort: a fresh
+    // onboarding workspace has no website yet, so sending an empty one is safe.
+    try {
+      await api.settings.updateWorkspace({
+        name: user?.workspace ?? '',
+        website: '',
+        business_type: businessType,
+      });
+    } catch {
+      // swallow — non-critical for finishing onboarding.
+    }
     showToast(t('onboarding.finish'), 'success');
     router.push('/inbox');
   }
@@ -194,7 +223,10 @@ export default function OnboardingPage() {
               </FormGroup>
 
               <FormGroup label={t('onboarding.business')}>
-                <Select defaultValue="ecommerce">
+                <Select
+                  value={businessType}
+                  onChange={(e) => setBusinessType(e.target.value)}
+                >
                   <option value="ecommerce">E-commerce</option>
                   <option value="food">Food & Beverage</option>
                   <option value="service">Service</option>
@@ -238,7 +270,9 @@ export default function OnboardingPage() {
               <Button variant="outline" onClick={() => setStep(2)}>
                 ← {t('common.back')}
               </Button>
-              <Button onClick={finish}>{t('onboarding.finish')}</Button>
+              <Button onClick={finish} disabled={finishing}>
+                {finishing ? '…' : t('onboarding.finish')}
+              </Button>
             </div>
           </>
         )}

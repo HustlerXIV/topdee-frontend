@@ -33,6 +33,32 @@ class WSManager {
   private intentionallyClosed = false;
 
   connect(token: string) {
+    // Already connected/connecting with this exact token — nothing to do.
+    if (
+      this.token === token &&
+      this.socket &&
+      this.socket.readyState <= WebSocket.OPEN
+    ) {
+      return;
+    }
+    // The token changed (account switch, or re-login after logout). Tear the
+    // old socket down and reconnect — otherwise open() would early-return on
+    // the still-open socket and we'd keep using a stale/revoked token, and
+    // potentially stream the previous account's events. Detaching this.socket
+    // first makes the old socket's onclose a no-op (see the guards in open()).
+    if (this.socket) {
+      const old = this.socket;
+      this.socket = null;
+      try {
+        old.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
     this.token = token;
     this.intentionallyClosed = false;
     this.open();
@@ -69,6 +95,9 @@ class WSManager {
     };
 
     sock.onmessage = (e) => {
+      // Ignore frames from a socket that has been superseded (e.g. after an
+      // account switch) — prevents delivering the previous account's events.
+      if (this.socket !== sock) return;
       try {
         const data = JSON.parse(e.data) as WSEvent;
         this.listeners.forEach((fn) => fn(data));
@@ -78,6 +107,9 @@ class WSManager {
     };
 
     sock.onclose = () => {
+      // A superseded socket closing must not clobber the current one or
+      // trigger a reconnect — only the live socket may.
+      if (this.socket !== sock) return;
       this.socket = null;
       if (!this.intentionallyClosed && this.token) {
         // Exponential backoff, cap at 30 s

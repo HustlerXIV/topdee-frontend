@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { api, ApiError, type InboxConversation, type Message, type MessageAttachment, type ChannelConnection } from '@/lib/api';
 
-export type Channel = 'line' | 'fb' | 'ig' | 'web';
+export type Channel = 'line' | 'fb' | 'ig' | 'tiktok' | 'whatsapp' | 'lazada' | 'web';
 export type ConvKind = 'ai' | 'team';
 
 export type ConvMessage = {
@@ -86,6 +86,9 @@ const CHANNEL_FROM_API: Record<string, Channel> = {
   fb: 'fb',
   instagram: 'ig',
   ig: 'ig',
+  tiktok: 'tiktok',
+  whatsapp: 'whatsapp',
+  lazada: 'lazada',
   web: 'web',
   webchat: 'web',
 };
@@ -152,6 +155,9 @@ const DEFAULT_CHANNEL_LABEL: Record<Channel, string> = {
   line: 'LINE OA',
   fb: 'Facebook',
   ig: 'Instagram',
+  tiktok: 'TikTok',
+  whatsapp: 'WhatsApp',
+  lazada: 'Lazada',
   web: 'Webchat',
 };
 

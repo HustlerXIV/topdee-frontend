@@ -525,6 +525,84 @@ export const dictionary = {
   },
   "settings.logout.btn": { th: "ออกจากระบบ", en: "Sign out" },
   "settings.toast.saved": { th: "บันทึกแล้ว", en: "Saved" },
+
+  // ── Subscription-lapsed banner (AppShell) ─────────────
+  "banner.lapsed.title": {
+    th: "แพ็กเกจของคุณหมดอายุแล้ว",
+    en: "Your subscription has expired",
+  },
+  "banner.lapsed.detail": {
+    th: " — AI จะไม่ตอบกลับลูกค้าจนกว่าจะต่ออายุ ทีมงานยังสามารถตอบผ่าน Inbox ได้ตามปกติ",
+    en: " — the AI will not reply to customers until you renew. Your team can still reply from the Inbox as usual.",
+  },
+  "banner.lapsed.renew": { th: "ต่ออายุ", en: "Renew" },
+
+  // ── Inbox (extra) ─────────────────────────────────────
+  "inbox.list.empty": {
+    th: "ยังไม่มีบทสนทนา ลองส่งข้อความถึง LINE OA ที่เชื่อมต่อจากมือถือของคุณ แล้วจะปรากฏที่นี่",
+    en: "No conversations yet. Send a message to your connected LINE OA from your phone — it'll show up here.",
+  },
+  "inbox.chat.empty": {
+    th: "ยังไม่มีข้อความในบทสนทนานี้",
+    en: "No messages yet in this conversation.",
+  },
+  "inbox.chat.loading": { th: "กำลังโหลดข้อความ…", en: "Loading messages…" },
+  "inbox.quickReplies.label": { th: "ข้อความสำเร็จรูป", en: "Quick Replies" },
+
+  // ── Team (extra) ──────────────────────────────────────
+  "team.invite.desc": {
+    th: "สร้างลิงก์ครั้งเดียวให้เพื่อนร่วมทีมใช้เข้าร่วม",
+    en: "Generate a one-time link your teammate can use to join",
+  },
+  "team.invite.hint": {
+    th: "ลิงก์คำเชิญถูกคัดลอกไปยังคลิปบอร์ดแล้ว — วางลงใน LINE/อีเมล/Slack เพื่อส่งให้เพื่อนร่วมทีม",
+    en: "The invite link is auto-copied to your clipboard — paste it into LINE/email/Slack to send to your teammate.",
+  },
+  "team.invite.copied": { th: "คัดลอกลิงก์เชิญแล้ว", en: "Invite link copied" },
+  "team.pending.title": { th: "คำเชิญที่รออยู่ ({n})", en: "Pending invites ({n})" },
+  "team.invite.expires": { th: "หมดอายุ {date}", en: "Expires {date}" },
+  "team.members.empty": { th: "ยังไม่มีสมาชิก", en: "No members yet." },
+  "team.resend.copied": {
+    th: "ออกลิงก์ใหม่และคัดลอกแล้ว",
+    en: "Re-issued + copied to clipboard",
+  },
+  "team.resend.done": { th: "ออกลิงก์ใหม่แล้ว", en: "Re-issued" },
+  "team.seats": { th: "{n}/{max} ที่นั่ง", en: "{n}/{max} seats" },
+
+  // Team permission table
+  "team.perm.header.permission": { th: "สิทธิ์", en: "Permission" },
+  "team.perm.header.owner": { th: "เจ้าของ", en: "Owner" },
+  "team.perm.header.admin": { th: "ผู้ดูแล", en: "Admin" },
+  "team.perm.header.agent": { th: "เจ้าหน้าที่", en: "Agent" },
+  "team.perm.header.viewer": { th: "ผู้ชม", en: "Viewer" },
+  "team.perm.reply": { th: "ตอบแชท", en: "Reply to chats" },
+  "team.perm.configBot": { th: "ตั้งค่า AI bot", en: "Configure AI bot" },
+  "team.perm.analytics": { th: "ดูสถิติ", en: "View analytics" },
+  "team.perm.channels": { th: "จัดการช่องทาง", en: "Manage channels" },
+  "team.perm.inviteTeam": { th: "เชิญ / ลบสมาชิก", en: "Invite / remove team" },
+  "team.perm.changeRoles": { th: "เปลี่ยน role สมาชิก", en: "Change member roles" },
+  "team.perm.billing": { th: "จัดการการเงิน", en: "Manage billing" },
+
+  // ── Referral ──────────────────────────────────────────
+  "referral.code.title": { th: "รหัสแนะนำของฉัน", en: "My referral code" },
+  "referral.shareLink": { th: "ลิงก์สำหรับแชร์", en: "Share link" },
+  "referral.copy": { th: "คัดลอก", en: "Copy" },
+  "referral.copied": { th: "ลิงก์ถูกคัดลอกแล้ว", en: "Link copied" },
+  "referral.howItWorks": { th: "วิธีการทำงาน", en: "How it works" },
+  "referral.loading": { th: "กำลังโหลด…", en: "Loading…" },
+  "referral.stat.totalReferrals": { th: "ผู้ที่แนะนำทั้งหมด", en: "Total referrals" },
+  "referral.stat.totalEarned": { th: "รายได้รวม", en: "Total earned" },
+  "referral.stat.balance": { th: "ยอดคงเหลือในกระเป๋า", en: "Wallet balance" },
+  "referral.withdraw": { th: "เบิกเงิน", en: "Withdraw" },
+  "referral.pending": { th: "รอดำเนินการ", en: "Pending" },
+  "referral.empty.title": {
+    th: "ยังไม่มีผู้สมัครจากรหัสของคุณ",
+    en: "No one has signed up with your code yet",
+  },
+  "referral.empty.desc": {
+    th: "แชร์รหัสหรือลิงก์ด้านบนให้เพื่อนเพื่อเริ่มรับคอมมิชชั่น",
+    en: "Share the code or link above with friends to start earning commission",
+  },
 } as const;
 
 export type DictKey = keyof typeof dictionary;

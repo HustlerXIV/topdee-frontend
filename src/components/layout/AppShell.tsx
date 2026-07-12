@@ -9,22 +9,35 @@ import { useAuth, type Role } from "@/store/auth";
 import { useInboxBadge } from "@/store/inbox-badge";
 import { cn } from "@/lib/cn";
 import { api } from "@/lib/api";
+import { useT } from "@/lib/i18n/useT";
 
 /**
  * Role guard hook — redirects to /inbox when the current user's role is not
  * in `allowedRoles`. Call this at the top of any page that should be
  * restricted (e.g. channels, billing, team).
+ *
+ * An empty/unknown role is treated as NOT allowed (redirect) once we have a
+ * hydrated session with a real user/token — a legit token missing its role
+ * claim still shouldn't silently pass a role-gated page (the backend
+ * re-checks anyway). We never redirect before hydration or when there's no
+ * session (AppShell handles the /login bounce). /inbox itself is unguarded,
+ * so redirecting there is always safe.
  */
 export function useRoleGuard(allowedRoles: Role[]) {
   const router = useRouter();
-  const { user, hydrated } = useAuth();
+  const { user, token, hydrated } = useAuth();
+  // Depend on a stable string, not the array literal, to avoid effect churn
+  // from a fresh `allowedRoles` array being passed on every render.
+  const allowedKey = allowedRoles.join(',');
   useEffect(() => {
     if (!hydrated) return;
-    const role = user?.role ?? '';
-    if (role && !allowedRoles.includes(role)) {
+    if (!token || !user) return; // no session yet — not our job to redirect
+    const role = user.role ?? '';
+    if (!allowedRoles.includes(role)) {
       router.replace('/inbox');
     }
-  }, [hydrated, user, router, allowedRoles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, token, user, router, allowedKey]);
 }
 
 /**
@@ -39,6 +52,7 @@ export function AppShell({
   withPadding?: boolean;
 }) {
   const router = useRouter();
+  const t = useT();
   const { token, user, hydrated, hydrate } = useAuth();
   const { init: initBadge, teardown: teardownBadge } = useInboxBadge();
   const [subscriptionLapsed, setSubscriptionLapsed] = useState(false);
@@ -86,14 +100,14 @@ export function AppShell({
         {subscriptionLapsed && (
           <div className="sticky top-0 z-40 flex items-center justify-between gap-4 border-b border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950/50">
             <p className="text-sm text-amber-800 dark:text-amber-200">
-              <strong>แพ็กเกจของคุณหมดอายุแล้ว</strong>
-              {" — "}AI จะไม่ตอบกลับลูกค้าจนกว่าจะต่ออายุ ทีมงานยังสามารถตอบผ่าน Inbox ได้ตามปกติ
+              <strong>{t("banner.lapsed.title")}</strong>
+              {t("banner.lapsed.detail")}
             </p>
             <a
               href="/billing"
               className="shrink-0 rounded-lg bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700 transition-colors"
             >
-              ต่ออายุ
+              {t("banner.lapsed.renew")}
             </a>
           </div>
         )}

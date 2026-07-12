@@ -17,6 +17,7 @@ import {
   api,
   ApiError,
   type AdminTenantFull,
+  type Plan,
   type Subscription,
   type SubscriptionStatus,
 } from '@/lib/api';
@@ -32,7 +33,6 @@ import {
   Sparkles,
 } from '@/components/ui/Icon';
 
-const PLANS = ['free', 'starter', 'growth', 'pro', 'enterprise'];
 const STATUSES: SubscriptionStatus[] = [
   'trialing',
   'active',
@@ -56,10 +56,17 @@ export default function AdminTenantDetailPage() {
   const showToast = useUI((s) => s.showToast);
 
   const [tenant, setTenant] = useState<AdminTenantFull | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [savingSub, setSavingSub] = useState(false);
 
   // Local edit copy of subscription so the form doesn't ping the API on every keystroke.
   const [subDraft, setSubDraft] = useState<Subscription | null>(null);
+
+  // Load all plans (including hidden ones) for the assignment dropdown — same
+  // source the tenants LIST page uses, so this stays in sync with real plans.
+  useEffect(() => {
+    api.admin.plans().then(setPlans).catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.admin
@@ -230,8 +237,16 @@ export default function AdminTenantDetailPage() {
                     value={tenant.plan}
                     onChange={(e) => patchTenant({ plan: e.target.value })}
                   >
-                    {PLANS.map((p) => (
-                      <option key={p} value={p}>{p}</option>
+                    {/* Keep the tenant's current plan selectable even if it's
+                        not in the fetched list (e.g. a deleted/legacy plan),
+                        so the browser doesn't silently default to the first. */}
+                    {plans.every((p) => p.id !== tenant.plan) && (
+                      <option value={tenant.plan}>{tenant.plan}</option>
+                    )}
+                    {plans.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.display_name}{!p.is_public ? ' 🔒' : ''}
+                      </option>
                     ))}
                   </Select>
                 </FormGroup>

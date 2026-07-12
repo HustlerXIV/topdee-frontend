@@ -22,6 +22,7 @@ import {
   isJwtExpired,
   TOKEN_MAX_AGE,
 } from '@/lib/cookies';
+import { wsManager } from '@/lib/ws';
 
 const TOKEN_KEY = 'topdee_token';
 const USER_KEY = 'topdee_user';
@@ -124,6 +125,11 @@ export const useAuth = create<AuthState>((set) => ({
       window.localStorage.removeItem(TOKEN_KEY); // clear any legacy copy too
       window.localStorage.removeItem(USER_KEY);
     }
+    // Tear down the realtime socket on every logout path — not just the ones
+    // that go through AppShell. Without this, logging out from an /admin/*
+    // page (AdminShell) leaves the socket open, retrying forever with a
+    // revoked token and potentially leaking events into the next session.
+    wsManager.disconnect();
     set({ token: null, user: null });
   },
 }));

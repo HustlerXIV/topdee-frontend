@@ -51,15 +51,30 @@ export default function TeamPage() {
 
   const [members, setMembers] = useState<Member[] | null>(null);
   const [invites, setInvites] = useState<TeamInvite[] | null>(null);
+  const [memberLimit, setMemberLimit] = useState<number | null>(null);
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<Role>('agent');
   const [inviting, setInviting] = useState(false);
 
+  // Re-run whenever `canManage` resolves: on first mount `myRole` is often
+  // undefined (auth not hydrated yet) so `canManage` is false and the invites
+  // request is skipped. Once hydration fills in the role, this fires again and
+  // loads the pending invites. `canManage` is a stable boolean so no loop.
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [canManage]);
+
+  // Seat limit comes from the plan — only owners can read billing, so gate the
+  // call on role to avoid a guaranteed 403 (and its error toast) for others.
+  useEffect(() => {
+    if (myRole !== 'owner') return;
+    api.billing
+      .info()
+      .then((i) => setMemberLimit(i.plan?.limits?.members ?? null))
+      .catch(() => {});
+  }, [myRole]);
 
   async function refresh() {
     const m = await api.team.members().catch(swallowAuth);
@@ -85,7 +100,7 @@ export default function TeamPage() {
       setInviteEmail('');
       try {
         await navigator.clipboard.writeText(res.accept_url);
-        showToast('คัดลอกลิงก์เชิญแล้ว / Invite link copied', 'success');
+        showToast(t('team.invite.copied'), 'success');
       } catch {
         showToast(t('team.invite.toast'), 'success');
       }
@@ -126,9 +141,9 @@ export default function TeamPage() {
       const res = await api.team.resendInvite(inv.id);
       try {
         await navigator.clipboard.writeText(res.accept_url);
-        showToast('Re-issued + copied to clipboard', 'success');
+        showToast(t('team.resend.copied'), 'success');
       } catch {
-        showToast('Re-issued', 'success');
+        showToast(t('team.resend.done'), 'success');
       }
       await refresh();
     } catch (e) {
@@ -149,13 +164,21 @@ export default function TeamPage() {
   }
 
   const totalSeats = (members?.length ?? 0) + (invites?.length ?? 0);
+  // Only show a seat ratio when we know the real plan limit (owners only).
+  // -1 means unlimited, so we omit the ratio there too.
+  const seatSuffix =
+    memberLimit != null && memberLimit > 0
+      ? ` (${t('team.seats')
+          .replace('{n}', String(totalSeats))
+          .replace('{max}', String(memberLimit))})`
+      : '';
 
   return (
     <AppShell>
       <PageHeader
         icon={<Users className="h-7 w-7" />}
         title={t('team.title').replace('👥 ', '')}
-        description={`${t('team.subFmt')} (${totalSeats}/10)`}
+        description={`${t('team.subFmt')}${seatSuffix}`}
       />
       <PageBody>
         {/* Owner+admin only — heads-up if a stale token is hiding the form */}
@@ -176,7 +199,7 @@ export default function TeamPage() {
             <CardHeader
               icon={<Mail className="h-4 w-4" />}
               title={t('team.invite.btn').replace('+ ', '')}
-              description="Generate a one-time link your teammate can use to join"
+              description={t('team.invite.desc')}
             />
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-line2 bg-page p-4">
               <Mail className="h-5 w-5 text-brand-600" />
@@ -208,8 +231,7 @@ export default function TeamPage() {
               </Button>
             </div>
             <p className="mt-2 text-xs text-ink-faint">
-              The invite link is auto-copied to your clipboard — paste it into
-              LINE/email/Slack to send to your teammate.
+              {t('team.invite.hint')}
             </p>
           </Card>
         )}
@@ -217,7 +239,7 @@ export default function TeamPage() {
         {/* Pending invites — owner/admin only */}
         {canManage && invites && invites.length > 0 && (
           <Card>
-            <CardHeader icon={<Hourglass className="h-4 w-4" />} title={`Pending invites (${invites.length})`} />
+            <CardHeader icon={<Hourglass className="h-4 w-4" />} title={t('team.pending.title').replace('{n}', String(invites.length))} />
             <ul>
               {invites.map((inv) => (
                 <li
@@ -230,7 +252,7 @@ export default function TeamPage() {
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold text-ink">{inv.email}</div>
                       <div className="text-[13px] text-ink-faint">
-                        Expires {new Date(inv.expires_at).toLocaleDateString()}
+                        {t('team.invite.expires').replace('{date}', new Date(inv.expires_at).toLocaleDateString())}
                       </div>
                     </div>
                     {/* Actions inline on sm+ */}
@@ -265,7 +287,7 @@ export default function TeamPage() {
           <CardHeader title={t('team.list.section')} />
           {!members && <p className="text-sm text-ink-faint">{t('common.loading')}</p>}
           {members && members.length === 0 && (
-            <p className="text-sm text-ink-faint">No members yet.</p>
+            <p className="text-sm text-ink-faint">{t('team.members.empty')}</p>
           )}
           {members && members.length > 0 && (
             <ul>
@@ -333,21 +355,21 @@ export default function TeamPage() {
             <table className="w-full text-[13px] text-ink">
               <thead>
                 <tr className="bg-page">
-                  <th className="border-b border-line2 px-4 py-2.5 text-left">Permission</th>
-                  <th className="border-b border-line2 px-3 py-2.5 text-center text-brand-600">Owner</th>
-                  <th className="border-b border-line2 px-3 py-2.5 text-center text-brand-500">Admin</th>
-                  <th className="border-b border-line2 px-3 py-2.5 text-center text-sky-700 dark:text-sky-400">Agent</th>
-                  <th className="border-b border-line2 px-3 py-2.5 text-center text-ink-muted">Viewer</th>
+                  <th className="border-b border-line2 px-4 py-2.5 text-left">{t('team.perm.header.permission')}</th>
+                  <th className="border-b border-line2 px-3 py-2.5 text-center text-brand-600">{t('team.perm.header.owner')}</th>
+                  <th className="border-b border-line2 px-3 py-2.5 text-center text-brand-500">{t('team.perm.header.admin')}</th>
+                  <th className="border-b border-line2 px-3 py-2.5 text-center text-sky-700 dark:text-sky-400">{t('team.perm.header.agent')}</th>
+                  <th className="border-b border-line2 px-3 py-2.5 text-center text-ink-muted">{t('team.perm.header.viewer')}</th>
                 </tr>
               </thead>
               <tbody>
-                <PermRow label="Reply to chats"        owner="full" admin="full" agent="full" viewer="view" />
-                <PermRow label="Configure AI bot"      owner="full" admin="full" agent="full" viewer="view" />
-                <PermRow label="View analytics"        owner="full" admin="full" agent="full" viewer="full" />
-                <PermRow label="Manage channels"       owner="full" admin="full" agent="none" viewer="none" />
-                <PermRow label="Invite / remove team"  owner="full" admin="full" agent="none" viewer="none" />
-                <PermRow label="Change member roles"   owner="full" admin="none" agent="none" viewer="none" />
-                <PermRow label="Manage billing"        owner="full" admin="none" agent="none" viewer="none" />
+                <PermRow label={t('team.perm.reply')}        owner="full" admin="full" agent="full" viewer="view" />
+                <PermRow label={t('team.perm.configBot')}    owner="full" admin="full" agent="full" viewer="view" />
+                <PermRow label={t('team.perm.analytics')}    owner="full" admin="full" agent="full" viewer="full" />
+                <PermRow label={t('team.perm.channels')}     owner="full" admin="full" agent="none" viewer="none" />
+                <PermRow label={t('team.perm.inviteTeam')}   owner="full" admin="full" agent="none" viewer="none" />
+                <PermRow label={t('team.perm.changeRoles')}  owner="full" admin="none" agent="none" viewer="none" />
+                <PermRow label={t('team.perm.billing')}      owner="full" admin="none" agent="none" viewer="none" />
               </tbody>
             </table>
           </div>

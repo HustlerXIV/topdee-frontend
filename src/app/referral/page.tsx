@@ -23,6 +23,7 @@ import {
 } from "@/lib/api";
 import { Copy, Check, Gift, Users, DollarSign, Clock } from "@/components/ui/Icon";
 import { useUI } from "@/store/ui";
+import { useAuth } from "@/store/auth";
 import { Dialog } from "@/components/ui/Dialog";
 
 // ── helpers ──────────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ export default function ReferralPage() {
 
   const t = useT();
   const showToast = useUI((s) => s.showToast);
+  const isAdmin = useAuth((s) => s.user?.isAdmin ?? false);
 
   const [codeData, setCodeData] = useState<ReferralCode | null>(null);
   const [stats, setStats] = useState<ReferralStats | null>(null);
@@ -101,12 +103,11 @@ export default function ReferralPage() {
     async function load() {
       setLoading(true);
       try {
-        const [c, s, w, pr, rs] = await Promise.all([
+        const [c, s, w, pr] = await Promise.all([
           api.referral.code(),
           api.referral.stats(),
           api.referral.wallet(),
           api.referral.myPayoutRequests(),
-          api.adminReferral.settings().catch(() => null),
         ]);
         if (!alive) return;
         setCodeData(c);
@@ -114,14 +115,25 @@ export default function ReferralPage() {
         setWallet(w.wallet);
         setTxns(w.transactions);
         setPayoutRequests(pr);
-        if (rs) setRefSettings(rs);
+        // Referral settings live behind an admin-only endpoint — calling it as
+        // a normal owner returns 403 and fires the global error toast. Only
+        // platform admins can read it, so gate the call on that flag. Normal
+        // owners fall back to generic commission copy (see the bullets below).
+        if (isAdmin) {
+          const rs = await api.adminReferral.settings().catch(() => null);
+          if (alive && rs) setRefSettings(rs);
+        }
+      } catch {
+        // The request layer already surfaced a toast for the failing call;
+        // swallow here so a single failure doesn't leave an unhandled rejection
+        // or wedge the page in its loading state.
       } finally {
         if (alive) setLoading(false);
       }
     }
     load();
     return () => { alive = false; };
-  }, []);
+  }, [isAdmin]);
 
   const shareURL =
     typeof window !== "undefined" && codeData
@@ -138,7 +150,7 @@ export default function ReferralPage() {
   async function copyLink() {
     if (!shareURL) return;
     await navigator.clipboard.writeText(shareURL);
-    showToast("ลิงก์ถูกคัดลอกแล้ว", "success");
+    showToast(t("referral.copied"), "success");
   }
 
   function openPayoutDialog() {
@@ -214,12 +226,12 @@ export default function ReferralPage() {
       <PageHeader title={t("nav.referral")} />
       <PageBody>
         {loading ? (
-          <div className="py-20 text-center text-sm text-ink-muted">กำลังโหลด…</div>
+          <div className="py-20 text-center text-sm text-ink-muted">{t("referral.loading")}</div>
         ) : (
           <div className="space-y-6">
             {/* ── Referral Code Card ─────────────────────────────────── */}
             <Card>
-              <CardHeader icon={<Gift className="h-5 w-5" />} title="รหัสแนะนำของฉัน" />
+              <CardHeader icon={<Gift className="h-5 w-5" />} title={t("referral.code.title")} />
               <div className="px-5 pb-5">
                 <div className="flex items-center gap-3">
                   <div className="rounded-xl border-2 border-brand-200 bg-brand-soft px-6 py-3 font-mono text-2xl font-extrabold tracking-widest text-brand-700 dark:border-brand-700/40 dark:bg-brand-950/30 dark:text-brand-300">
@@ -234,17 +246,17 @@ export default function ReferralPage() {
                     {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className="mt-4 text-sm font-medium text-ink">ลิงก์สำหรับแชร์</p>
+                <p className="mt-4 text-sm font-medium text-ink">{t("referral.shareLink")}</p>
                 <div className="mt-1.5 flex items-center gap-2">
                   <span className="flex-1 truncate rounded-lg border border-line2 bg-muted px-3 py-2 font-mono text-[13px] text-ink-muted">
                     {shareURL}
                   </span>
                   <Button variant="outline" size="sm" onClick={copyLink} iconLeft={<Copy className="h-4 w-4" />}>
-                    คัดลอก
+                    {t("referral.copy")}
                   </Button>
                 </div>
                 <div className="mt-5 rounded-xl bg-muted p-4 text-sm text-ink-muted">
-                  <p className="font-semibold text-ink">วิธีการทำงาน</p>
+                  <p className="font-semibold text-ink">{t("referral.howItWorks")}</p>
                   <ul className="mt-2 space-y-1 list-disc list-inside">
                     <li>
                       {(() => {
@@ -257,8 +269,20 @@ export default function ReferralPage() {
                         return `เพื่อนสมัครด้วยรหัสของคุณ → ได้ส่วนลด ${pct}% สำหรับการชำระครั้งแรกเท่านั้น`;
                       })()}
                     </li>
-                    <li>คุณได้รับ ฿100 เมื่อเพื่อนชำระครั้งแรก</li>
-                    <li>คุณได้รับ ฿50 ทุกเดือนที่เพื่อนต่ออายุ</li>
+                    {/* Commission amounts are only known to platform admins (the
+                        settings endpoint is admin-only). For normal owners keep
+                        the copy generic rather than stating hardcoded figures. */}
+                    {refSettings ? (
+                      <>
+                        <li>คุณได้รับ {satangToTHB(refSettings.first_commission_amount)} เมื่อเพื่อนชำระครั้งแรก</li>
+                        <li>คุณได้รับ {satangToTHB(refSettings.recurring_commission_amount)} ทุกเดือนที่เพื่อนต่ออายุ</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>รับคอมมิชชั่นเมื่อเพื่อนชำระเงินครั้งแรก</li>
+                        <li>รับคอมมิชชั่นต่อเนื่องทุกเดือนที่เพื่อนต่ออายุ</li>
+                      </>
+                    )}
                   </ul>
                 </div>
               </div>
@@ -266,18 +290,18 @@ export default function ReferralPage() {
 
             {/* ── Stats row ──────────────────────────────────────────── */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <StatBox icon={<Users className="h-5 w-5" />} label="ผู้ที่แนะนำทั้งหมด" value={String(stats?.total_referrals ?? 0)} />
-              <StatBox icon={<DollarSign className="h-5 w-5" />} label="รายได้รวม" value={satangToTHB(stats?.total_earned ?? 0)} />
+              <StatBox icon={<Users className="h-5 w-5" />} label={t("referral.stat.totalReferrals")} value={String(stats?.total_referrals ?? 0)} />
+              <StatBox icon={<DollarSign className="h-5 w-5" />} label={t("referral.stat.totalEarned")} value={satangToTHB(stats?.total_earned ?? 0)} />
               <StatBox
                 icon={<DollarSign className="h-5 w-5" />}
-                label="ยอดคงเหลือในกระเป๋า"
+                label={t("referral.stat.balance")}
                 value={satangToTHB(wallet?.balance ?? 0)}
                 action={
                   (wallet?.balance ?? 0) > 0 && !hasPendingRequest ? (
-                    <Button size="sm" onClick={openPayoutDialog}>เบิกเงิน</Button>
+                    <Button size="sm" onClick={openPayoutDialog}>{t("referral.withdraw")}</Button>
                   ) : hasPendingRequest ? (
                     <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
-                      <Clock className="h-3.5 w-3.5" /> รอดำเนินการ
+                      <Clock className="h-3.5 w-3.5" /> {t("referral.pending")}
                     </span>
                   ) : undefined
                 }
@@ -398,8 +422,8 @@ export default function ReferralPage() {
             {(stats?.referrals?.length ?? 0) === 0 && txns.length === 0 && (
               <div className="py-16 text-center">
                 <Gift className="mx-auto mb-3 h-12 w-12 text-ink-faint" />
-                <p className="text-sm font-semibold text-ink">ยังไม่มีผู้สมัครจากรหัสของคุณ</p>
-                <p className="mt-1 text-sm text-ink-muted">แชร์รหัสหรือลิงก์ด้านบนให้เพื่อนเพื่อเริ่มรับคอมมิชชั่น</p>
+                <p className="text-sm font-semibold text-ink">{t("referral.empty.title")}</p>
+                <p className="mt-1 text-sm text-ink-muted">{t("referral.empty.desc")}</p>
               </div>
             )}
           </div>

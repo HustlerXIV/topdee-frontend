@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { AppShell, PageBody, PageHeader } from '@/components/layout/AppShell';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Input';
@@ -20,13 +20,32 @@ import {
 
 type Range = '7d' | '30d' | 'month';
 
-/** Fill every day in the window with a count (0 if no data). */
+/** YYYY-MM-DD for a Date as seen in Asia/Bangkok (UTC+7). Uses en-CA which
+ * formats as ISO-style YYYY-MM-DD. */
+function bangkokDateKey(d: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+
+/** Fill every day in the window with a count (0 if no data).
+ *
+ * The day window is anchored to *today in Asia/Bangkok* (the product is
+ * Thailand, UTC+7) so the last bar lines up with the user's calendar day
+ * instead of drifting to the UTC day. NOTE: the backend still buckets the
+ * `daily` counts by UTC day — that mismatch is a backend concern and out of
+ * scope here; this only fixes the frontend day window/labels. */
 function fillDailyGaps(daily: DailyStat[], days: number): DailyStat[] {
   const map = new Map(daily.map((d) => [d.date, d.count]));
   const result: DailyStat[] = [];
-  const now = new Date();
+  // Normalize "today" to a UTC-midnight anchor of the Bangkok calendar date so
+  // the per-day subtraction below is plain, DST-free date arithmetic.
+  const base = new Date(bangkokDateKey(new Date()) + 'T00:00:00Z');
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now);
+    const d = new Date(base);
     d.setUTCDate(d.getUTCDate() - i);
     const key = d.toISOString().slice(0, 10);
     result.push({ date: key, count: map.get(key) ?? 0 });
@@ -103,14 +122,27 @@ export default function AnalyticsPage() {
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Monotonic request id: switching range fast can land responses out of
+  // order, so we ignore any response that isn't from the latest request.
+  const reqIdRef = useRef(0);
+
   const load = useCallback(
     (r: Range) => {
+      const reqId = ++reqIdRef.current;
       setLoading(true);
       api
         .analytics(r)
-        .then(setStats)
-        .catch((e) => showToast(e instanceof ApiError ? e.message : 'Failed to load stats', 'error'))
-        .finally(() => setLoading(false));
+        .then((data) => {
+          if (reqId === reqIdRef.current) setStats(data);
+        })
+        .catch((e) => {
+          if (reqId === reqIdRef.current) {
+            showToast(e instanceof ApiError ? e.message : 'Failed to load stats', 'error');
+          }
+        })
+        .finally(() => {
+          if (reqId === reqIdRef.current) setLoading(false);
+        });
     },
     [showToast],
   );

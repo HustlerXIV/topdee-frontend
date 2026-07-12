@@ -106,6 +106,19 @@ export default function InboxPage() {
   const selected =
     conversations.find((c) => c.id === selectedId) ?? filtered[0];
 
+  // If the selected id no longer exists (conversation dropped off a refresh),
+  // adopt the fallback's id so loadMessages fetches the right transcript
+  // instead of endlessly re-requesting the gone id (which leaves the pane
+  // stuck on "Loading messages…"). Only runs when there's a real mismatch, so
+  // it can't loop once selectedId points at an existing conversation.
+  useEffect(() => {
+    if (!selectedId) return;
+    const exists = conversations.some((c) => c.id === selectedId);
+    if (!exists && filtered[0]) {
+      select(filtered[0].id);
+    }
+  }, [selectedId, conversations, filtered, select]);
+
   return (
     <AppShell withPadding={false}>
       <div className="grid flex-1 min-h-0 grid-cols-1 md:grid-cols-[300px_1fr]">
@@ -152,13 +165,12 @@ export default function InboxPage() {
           <div className="min-h-0 flex-1 overflow-y-auto">
             {loading && conversations.length === 0 && (
               <div className="p-6 text-center text-xs text-ink-faint">
-                Loading…
+                {t("common.loading")}
               </div>
             )}
             {!loading && filtered.length === 0 && (
               <div className="p-6 text-center text-[13px] text-ink-faint">
-                No conversations yet. Send a message to your connected LINE OA
-                from your phone — it'll show up here.
+                {t("inbox.list.empty")}
               </div>
             )}
             {filtered.map((c) => (
@@ -464,9 +476,9 @@ function ChatArea({
               <div className="flex h-full items-center justify-center">
                 <div className="rounded-2xl border border-line2 bg-card px-5 py-4 text-center text-sm text-ink-faint">
                   {conv.loaded ? (
-                    <>No messages yet in this conversation.</>
+                    <>{t("inbox.chat.empty")}</>
                   ) : (
-                    <>Loading messages…</>
+                    <>{t("inbox.chat.loading")}</>
                   )}
                 </div>
               </div>
@@ -587,7 +599,7 @@ function ChatArea({
             <div className="mx-3 mb-2 rounded-2xl border border-line2 bg-card shadow-lg md:mx-5">
               <div className="border-b border-line2 px-4 py-2.5">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-                  Quick Replies
+                  {t("inbox.quickReplies.label")}
                 </p>
               </div>
               {QUICK_REPLIES.map((qr) => (
@@ -1168,7 +1180,7 @@ function ChannelPill({
   channel,
   label,
 }: {
-  channel: "line" | "fb" | "ig" | "web";
+  channel: Conversation["channel"];
   label?: string;
 }) {
   const map = {
@@ -1186,6 +1198,21 @@ function ChannelPill({
       label: "Instagram",
       classes:
         "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300",
+    },
+    tiktok: {
+      label: "TikTok",
+      classes:
+        "bg-neutral-100 text-neutral-900 dark:bg-neutral-800/60 dark:text-neutral-100",
+    },
+    whatsapp: {
+      label: "WhatsApp",
+      classes:
+        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    },
+    lazada: {
+      label: "Lazada",
+      classes:
+        "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
     },
     web: {
       label: "Webchat",

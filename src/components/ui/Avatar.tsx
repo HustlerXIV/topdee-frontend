@@ -58,6 +58,9 @@ const dotMap = {
   line: 'bg-line text-white',
   fb: 'bg-fb text-white',
   ig: 'bg-ig text-white',
+  tiktok: 'bg-neutral-900 text-white',
+  whatsapp: 'bg-emerald-500 text-white',
+  lazada: 'bg-orange-500 text-white',
   web: 'bg-web text-white',
 };
 
@@ -65,6 +68,9 @@ const dotIcon = {
   line: 'L',
   fb: 'f',
   ig: 'i',
+  tiktok: 'T',
+  whatsapp: 'W',
+  lazada: 'Lz',
   web: 'w',
 };
 

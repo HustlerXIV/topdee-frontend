@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell, PageBody, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -51,6 +51,13 @@ export default function BotPage() {
   const [model, setModel] = useState("");
   const [temperature, setTemperature] = useState<string>("0.3");
 
+  // model + temperature have no UI to edit them. Remember what the server
+  // actually sent so save() can echo those values back only when they were
+  // genuinely loaded — never the local "0.3"/"" fallbacks, which would
+  // otherwise pin a possibly-null server value. null = server didn't set one.
+  const serverModel = useRef<string | null>(null);
+  const serverTemp = useRef<number | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -72,21 +79,27 @@ export default function BotPage() {
     setPrompt(s.system_prompt ?? "");
     setModel(s.model ?? "");
     setTemperature(s.temperature == null ? "0.3" : String(s.temperature));
+    serverModel.current = s.model && s.model.trim() ? s.model : null;
+    serverTemp.current = s.temperature ?? null;
   }
 
   async function save() {
     setSaving(true);
     try {
-      const tempNum = Number(temperature);
-      const updated = await api.bot.update({
+      // Only send the fields the UI actually edits. model/temperature are not
+      // editable here, so include them only if the server had a real value —
+      // omitting them lets the backend keep its own default instead of us
+      // overwriting it with a local fallback.
+      const payload: Partial<Omit<BotSettings, "updated_at">> = {
         name: name.trim(),
         language,
         persona,
         mode,
         system_prompt: prompt,
-        model: model.trim(),
-        temperature: Number.isFinite(tempNum) ? tempNum : null,
-      });
+      };
+      if (serverModel.current !== null) payload.model = serverModel.current;
+      if (serverTemp.current !== null) payload.temperature = serverTemp.current;
+      const updated = await api.bot.update(payload);
       applyFromServer(updated);
       showToast(t("bot.toast.saved"), "success");
     } catch {

@@ -565,8 +565,23 @@ function handleSessionExpired() {
 
 // Lazily import the UI store so we never pull Zustand into SSR bundles.
 // Called only when a real error fires in the browser.
+//
+// Dedupe identical error toasts within a short window so that a background
+// poller failing repeatedly (e.g. the 5s inbox refresh while offline) can't
+// spam the same toast every few seconds. 401/session-expiry never routes
+// through here — it goes straight to handleSessionExpired — so this doesn't
+// affect logout-on-expiry.
+let lastErrorMessage: string | null = null;
+let lastErrorAt = 0;
+const ERROR_TOAST_DEDUPE_MS = 10000;
 function showErrorToast(message: string) {
   if (typeof window === 'undefined') return;
+  const now = Date.now();
+  if (message === lastErrorMessage && now - lastErrorAt < ERROR_TOAST_DEDUPE_MS) {
+    return;
+  }
+  lastErrorMessage = message;
+  lastErrorAt = now;
   // Dynamic import keeps the store out of server-side bundles.
   import('@/store/ui').then(({ useUI }) => {
     useUI.getState().showToast(message, 'error');
@@ -591,7 +606,26 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   const text = await res.text();
-  const body = text ? JSON.parse(text) : null;
+  let body: any = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      // Non-JSON response — typically a proxy/CDN/gateway HTML error page
+      // (502/504, Cloudflare challenge). Route it through the normal error
+      // path instead of throwing a raw SyntaxError that bypasses every
+      // caller's `instanceof ApiError` handling.
+      if (res.status === 401 && token) {
+        handleSessionExpired();
+        throw new ApiError(401, 'Session expired');
+      }
+      const message = res.ok
+        ? 'Unexpected server response.'
+        : res.statusText || `Request failed (${res.status})`;
+      showErrorToast(message);
+      throw new ApiError(res.ok ? 502 : res.status, message);
+    }
+  }
   if (!res.ok) {
     const message = body?.error ?? res.statusText;
     // A 401 on a request we authenticated means the session went stale

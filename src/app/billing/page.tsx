@@ -356,10 +356,21 @@ export default function BillingPage() {
 
   const msgLimit = plan?.limits?.messages_per_month ?? 0; // -1 = unlimited
   const memberLimit = plan?.limits?.members ?? 0; // -1 = unlimited
-  const chanLimit = Object.values(plan?.limits?.channels ?? {}).reduce(
-    (a, b) => a + b,
-    0,
-  );
+  // Channel cap — mirror planFeatures() above:
+  //  • total mode → the explicit `total_channels` cap
+  //  • per-provider → sum of the per-provider caps, but any -1 (unlimited)
+  //    poisons a plain sum, so surface unlimited instead of a bogus number.
+  // Result convention: -1 = unlimited, 0 = none/unknown, >0 = finite cap.
+  const chanLimit = (() => {
+    const lim = plan?.limits;
+    if (!lim) return 0;
+    if (lim.channel_limit_mode === 'total') {
+      return lim.total_channels ?? 0; // -1 unlimited, 0 none, >0 cap
+    }
+    const vals = Object.values(lim.channels ?? {});
+    if (vals.some((v) => v === -1)) return -1; // unlimited
+    return vals.reduce((a, b) => (b > 0 ? a + b : a), 0);
+  })();
   const msgPct = usagePct(usage?.messages_this_month ?? 0, msgLimit);
   // Show usage bar only when there is a real finite cap (> 0 and not -1)
   const msgLimitFinite = msgLimit > 0;
